@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +26,9 @@ type IndexEntry struct {
 	Offset int64
 }
 type sstable struct {
+	index           []IndexEntry
+	count           int
+	minKey, maxKey  string
 	id              int
 	path, indexPath string
 }
@@ -278,6 +280,7 @@ func (t *sstable) rebuildIndex() error {
 		return err
 	}
 	defer os.Remove(t.indexPath + ".tmp")
+	t.index = nil
 	r := bufio.NewReader(f)
 	offset := int64(0)
 	count := 0
@@ -295,7 +298,12 @@ func (t *sstable) rebuildIndex() error {
 			index.Close()
 			return errors.New("unsorted SSTable")
 		}
+		if count == 0 {
+			t.minKey = e.Key
+		}
+		t.maxKey = e.Key
 		if count%10 == 0 {
+			t.index = append(t.index, IndexEntry{e.Key, offset})
 			if _, err = writeIndex(index, e.Key, offset); err != nil {
 				index.Close()
 				return err
@@ -305,6 +313,7 @@ func (t *sstable) rebuildIndex() error {
 		last = e.Key
 		count++
 	}
+	t.count = count
 	if err = index.Sync(); err != nil {
 		index.Close()
 		return err
@@ -315,30 +324,10 @@ func (t *sstable) rebuildIndex() error {
 	return os.Rename(t.indexPath+".tmp", t.indexPath)
 }
 func (t *sstable) get(key string) (Entry, bool, error) {
-	idx, err := os.Open(t.indexPath)
-	if err != nil {
-		return Entry{}, false, err
+	if t.count == 0 || key < t.minKey || key > t.maxKey {
+		return Entry{}, false, nil
 	}
-	var entries []IndexEntry
-	rIndex := bufio.NewReader(idx)
-	for {
-		e, _, readErr := readRecord(rIndex)
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			idx.Close()
-			return Entry{}, false, readErr
-		}
-		if len(e.Value) != 8 {
-			idx.Close()
-			return Entry{}, false, errors.New("invalid index offset")
-		}
-		entries = append(entries, IndexEntry{e.Key, int64(binary.LittleEndian.Uint64([]byte(e.Value)))})
-	}
-	if err = idx.Close(); err != nil {
-		return Entry{}, false, err
-	}
+	entries := t.index
 	i := sort.Search(len(entries), func(i int) bool { return entries[i].Key > key }) - 1
 	if i < 0 {
 		return Entry{}, false, nil

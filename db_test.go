@@ -188,3 +188,11 @@ func TestBinaryCorruption(t *testing.T) {
 		t.Fatal("corruption accepted")
 	}
 }
+
+func TestIndexResident(t *testing.T) {
+	db := openTest(t, Options{})
+	must(t, db.Put("key", "value"))
+	must(t, db.Flush())
+	must(t, os.Remove(db.tables[0].indexPath))
+	want(t, db, "key", "value", true)
+}
