@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type manifest struct {
@@ -71,5 +72,30 @@ func (db *DB) install(tables []*sstable) error {
 		return err
 	}
 	db.tables = tables
+	return nil
+}
+
+func (db *DB) cleanupOrphans(paths []string) error {
+	active := map[string]bool{}
+	for _, t := range db.tables {
+		active[t.path] = true
+	}
+	changed := false
+	for _, path := range paths {
+		if active[path] {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		index := strings.TrimSuffix(path, ".log") + ".index"
+		if err := os.Remove(index); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		changed = true
+	}
+	if changed {
+		return syncDir(db.dir)
+	}
 	return nil
 }

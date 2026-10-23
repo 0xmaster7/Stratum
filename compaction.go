@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/heap"
+	"errors"
 	"io"
 	"os"
 	"time"
@@ -109,19 +110,18 @@ func (db *DB) Compact() error {
 		return err
 	}
 	db.cache.clear()
+	var cleanupErr error
 	for _, oldTable := range old {
-		if err = oldTable.close(); err != nil {
-			return err
-		}
-		if err = os.Remove(oldTable.path); err != nil {
-			return err
-		}
-		if err = os.Remove(oldTable.indexPath); err != nil && !os.IsNotExist(err) {
-			return err
+		cleanupErr = errors.Join(cleanupErr, oldTable.close())
+		for _, path := range []string{oldTable.path, oldTable.indexPath} {
+			if e := os.Remove(path); e != nil && !os.IsNotExist(e) {
+				cleanupErr = errors.Join(cleanupErr, e)
+			}
 		}
 	}
-	if err = syncDir(db.dir); err != nil {
-		return err
+	cleanupErr = errors.Join(cleanupErr, syncDir(db.dir))
+	if cleanupErr != nil {
+		return cleanupErr
 	}
 	db.metrics.compactions.Add(1)
 	db.metrics.compactionNanos.Add(uint64(time.Since(started)))

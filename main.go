@@ -9,17 +9,27 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
 	dir := flag.String("dir", ".", "database directory")
+	syncWrites := flag.Bool("sync-writes", false, "fsync WAL before acknowledging each write")
+	cacheBytes := flag.Int("cache-bytes", 16<<20, "LRU byte budget; -1 disables")
+	threshold := flag.Int("flush-threshold", 1000, "WAL operations per flush")
+	interval := flag.Duration("compaction-interval", 30*time.Second, "background compaction interval; negative disables")
+	compactThreshold := flag.Int("compaction-threshold", 4, "minimum SSTables for background compaction")
 	flag.Parse()
-	db, err := Open(*dir, Options{})
+	db, err := Open(*dir, Options{SyncWrites: *syncWrites, CacheBytes: *cacheBytes, FlushThreshold: *threshold, CompactionInterval: *interval, CompactionThreshold: *compactThreshold})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "close:", err)
+		}
+	}()
 	fmt.Println("GoLSM: PUT key value | GET key | DELETE key | SCAN start end [limit] | FLUSH | COMPACT | STATS | EXIT")
 	in := bufio.NewScanner(os.Stdin)
 	for in.Scan() {

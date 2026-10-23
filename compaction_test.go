@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -144,4 +145,61 @@ func TestRandomizedModel(t *testing.T) {
 		}
 	}
 	must(t, db.Close())
+}
+
+func TestManifestFailureKeepsWAL(t *testing.T) {
+	db := openTest(t, Options{})
+	dir := db.dir
+	must(t, db.Put("key", "safe"))
+	must(t, os.Mkdir(filepath.Join(dir, "MANIFEST.tmp"), 0755))
+	if err := db.Flush(); err == nil {
+		t.Fatal("publication unexpectedly succeeded")
+	}
+	if err := db.Put("next", "rejected"); err == nil {
+		t.Fatal("writes continued after publication failure")
+	}
+	if db.Stats().WriteError == "" {
+		t.Fatal("write error not exposed")
+	}
+	want(t, db, "key", "safe", true)
+	must(t, db.Close())
+	must(t, os.Remove(filepath.Join(dir, "MANIFEST.tmp")))
+	db, err := Open(dir, Options{})
+	must(t, err)
+	defer db.Close()
+	want(t, db, "key", "safe", true)
+	want(t, db, "next", "", false)
+	must(t, db.Flush())
+	want(t, db, "key", "safe", true)
+}
+func TestConcurrentCompactionAndStats(t *testing.T) {
+	db := openTest(t, Options{FlushThreshold: 41, CompactionInterval: time.Millisecond, CompactionThreshold: 2})
+	var wg sync.WaitGroup
+	for w := 0; w < 4; w++ {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < 80; i++ {
+				k := fmt.Sprintf("%d-%d", w, i)
+				if err := db.Put(k, k); err != nil {
+					t.Error(err)
+					return
+				}
+				if i%20 == 0 {
+					db.Stats()
+					if _, err := db.Scan("", "", 3); err != nil {
+						t.Error(err)
+					}
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	must(t, db.Compact())
+	for w := 0; w < 4; w++ {
+		for i := 0; i < 80; i++ {
+			k := fmt.Sprintf("%d-%d", w, i)
+			want(t, db, k, k, true)
+		}
+	}
 }

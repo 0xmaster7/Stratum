@@ -175,6 +175,9 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 			return nil, err
 		}
 	}
+	if err = db.cleanupOrphans(paths); err != nil {
+		return nil, err
+	}
 	db.metrics.startupNanos.Store(uint64(time.Since(started)))
 	go db.runCompactor()
 	return db, nil
@@ -225,13 +228,13 @@ func (db *DB) mutate(e Entry) error {
 	if err != nil {
 		db.walErr = err
 	}
+	db.walMu.Unlock()
 	if err == nil {
 		shard.put(e)
 		db.cache.remove(e.Key)
 		db.operations.Add(1)
 	}
 	flush := db.operations.Load() >= int64(db.opts.FlushThreshold)
-	db.walMu.Unlock()
 	shard.mu.Unlock()
 	db.mu.RUnlock()
 	if err != nil {
