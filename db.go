@@ -26,6 +26,7 @@ type IndexEntry struct {
 	Offset int64
 }
 type sstable struct {
+	bloom           *bloomFilter
 	index           []IndexEntry
 	count           int
 	minKey, maxKey  string
@@ -281,6 +282,7 @@ func (t *sstable) rebuildIndex() error {
 	}
 	defer os.Remove(t.indexPath + ".tmp")
 	t.index = nil
+	var hashes []uint64
 	r := bufio.NewReader(f)
 	offset := int64(0)
 	count := 0
@@ -309,11 +311,16 @@ func (t *sstable) rebuildIndex() error {
 				return err
 			}
 		}
+		hashes = append(hashes, hash(e.Key))
 		offset += n
 		last = e.Key
 		count++
 	}
 	t.count = count
+	t.bloom = newBloom(count)
+	for _, h := range hashes {
+		t.bloom.addHash(h)
+	}
 	if err = index.Sync(); err != nil {
 		index.Close()
 		return err
@@ -324,7 +331,7 @@ func (t *sstable) rebuildIndex() error {
 	return os.Rename(t.indexPath+".tmp", t.indexPath)
 }
 func (t *sstable) get(key string) (Entry, bool, error) {
-	if t.count == 0 || key < t.minKey || key > t.maxKey {
+	if t.count == 0 || key < t.minKey || key > t.maxKey || !t.bloom.contains(key) {
 		return Entry{}, false, nil
 	}
 	entries := t.index
