@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 var ErrClosed = errors.New("database is closed")
@@ -35,25 +36,39 @@ type sstable struct {
 	path, indexPath string
 }
 type Options struct {
-	CacheBytes     int
-	FlushThreshold int
-	SyncWrites     bool
+	CompactionInterval  time.Duration
+	CompactionThreshold int
+	CacheBytes          int
+	FlushThreshold      int
+	SyncWrites          bool
 }
 type DB struct {
-	cache      *readCache
-	mu         sync.RWMutex
-	dir        string
-	opts       Options
-	mem        *memTable
-	tables     []*sstable
-	nextID     int
-	operations atomic.Int64
-	walMu      sync.Mutex
-	wal, lock  *os.File
-	closed     bool
+	stop, done              chan struct{}
+	writeErr, backgroundErr error
+	walErr                  error
+	cache                   *readCache
+	mu                      sync.RWMutex
+	dir                     string
+	opts                    Options
+	mem                     *memTable
+	tables                  []*sstable
+	nextID                  int
+	operations              atomic.Int64
+	walMu                   sync.Mutex
+	wal, lock               *os.File
+	closed                  bool
 }
 
 func Open(dir string, opts Options) (_ *DB, err error) {
+	if opts.CompactionInterval == 0 {
+		opts.CompactionInterval = 30 * time.Second
+	}
+	if opts.CompactionThreshold == 0 {
+		opts.CompactionThreshold = 4
+	}
+	if opts.CompactionThreshold < 2 {
+		return nil, errors.New("compaction threshold must be at least two")
+	}
 	if opts.CacheBytes == 0 {
 		opts.CacheBytes = 16 << 20
 	}
@@ -69,7 +84,7 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err = os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes)}
+	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes), stop: make(chan struct{}), done: make(chan struct{})}
 	db.lock, err = os.OpenFile(filepath.Join(dir, "LOCK"), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
@@ -93,10 +108,20 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err != nil {
 		return nil, err
 	}
+	active, hasManifest, err := readManifest(dir)
+	if err != nil {
+		return nil, err
+	}
 	for _, path := range paths {
 		id, e := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(path), "sstable_"), ".log"))
 		if e != nil || id < 1 {
 			return nil, fmt.Errorf("invalid SSTable name %s", path)
+		}
+		if id >= db.nextID {
+			db.nextID = id + 1
+		}
+		if hasManifest && !active[id] {
+			continue
 		}
 		t := &sstable{id: id, path: path, indexPath: strings.TrimSuffix(path, ".log") + ".index"}
 		// Rebuilding the sparse index also validates existing records before serving reads.
@@ -107,9 +132,13 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 			return nil, err
 		}
 		db.tables = append(db.tables, t)
+		delete(active, id)
 		if id >= db.nextID {
 			db.nextID = id + 1
 		}
+	}
+	if len(active) > 0 {
+		return nil, errors.New("manifest references missing SSTable")
 	}
 	sort.Slice(db.tables, func(i, j int) bool { return db.tables[i].id < db.tables[j].id })
 	db.wal, err = os.OpenFile(filepath.Join(dir, "data.log"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
@@ -136,6 +165,12 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 		db.mem.shard(e.Key).put(e)
 		db.operations.Add(1)
 	}
+	if !hasManifest {
+		if err = db.publish(db.tables); err != nil {
+			return nil, err
+		}
+	}
+	go db.runCompactor()
 	return db, nil
 }
 func (db *DB) Put(key, value string) error { return db.mutate(Entry{Key: key, Value: value}) }
@@ -146,6 +181,11 @@ func (db *DB) mutate(e Entry) error {
 		db.mu.RUnlock()
 		return ErrClosed
 	}
+	if db.writeErr != nil {
+		err := db.writeErr
+		db.mu.RUnlock()
+		return err
+	}
 	if len(e.Key)+len(e.Value) > maxRecordSize {
 		db.mu.RUnlock()
 		return errors.New("record exceeds 64 MiB limit")
@@ -153,9 +193,17 @@ func (db *DB) mutate(e Entry) error {
 	shard := db.mem.shard(e.Key)
 	shard.mu.Lock()
 	db.walMu.Lock()
-	_, err := writeRecord(db.wal, e)
+	var err error
+	if db.walErr != nil {
+		err = db.walErr
+	} else {
+		_, err = writeRecord(db.wal, e)
+	}
 	if err == nil && db.opts.SyncWrites {
 		err = db.wal.Sync()
+	}
+	if err != nil {
+		db.walErr = err
 	}
 	if err == nil {
 		shard.put(e)
@@ -209,6 +257,12 @@ func (db *DB) Flush() error {
 	return db.flushLocked()
 }
 func (db *DB) flushLocked() error {
+	if db.writeErr != nil {
+		return db.writeErr
+	}
+	if db.walErr != nil {
+		return db.walErr
+	}
 	if db.operations.Load() == 0 {
 		return nil
 	}
@@ -218,11 +272,17 @@ func (db *DB) flushLocked() error {
 	if err != nil {
 		return err
 	}
-	db.tables = append(db.tables, t)
+	tables := append(append([]*sstable(nil), db.tables...), t)
+	if err = db.install(tables); err != nil {
+		t.close()
+		return err
+	}
 	if err = db.wal.Truncate(0); err != nil {
+		db.writeErr = err
 		return err
 	}
 	if err = db.wal.Sync(); err != nil {
+		db.writeErr = err
 		return err
 	}
 	db.mem = newMemTable()
@@ -231,6 +291,17 @@ func (db *DB) flushLocked() error {
 	return nil
 }
 func (db *DB) writeTable(entries []Entry) (*sstable, error) {
+	i := 0
+	return db.writeTableIterator(func() (Entry, bool, error) {
+		if i == len(entries) {
+			return Entry{}, false, nil
+		}
+		e := entries[i]
+		i++
+		return e, true, nil
+	})
+}
+func (db *DB) writeTableIterator(next func() (Entry, bool, error)) (*sstable, error) {
 	id := db.nextID
 	db.nextID++
 	path := filepath.Join(db.dir, fmt.Sprintf("sstable_%d.log", id))
@@ -240,7 +311,15 @@ func (db *DB) writeTable(entries []Entry) (*sstable, error) {
 	}
 	defer os.Remove(path + ".tmp")
 	w := bufio.NewWriter(f)
-	for _, e := range entries {
+	for {
+		e, ok, nextErr := next()
+		if nextErr != nil {
+			f.Close()
+			return nil, nextErr
+		}
+		if !ok {
+			break
+		}
 		if _, err = writeRecord(w, e); err != nil {
 			f.Close()
 			return nil, err
@@ -282,27 +361,29 @@ func syncDir(path string) error {
 }
 func (db *DB) Close() error {
 	db.mu.Lock()
-	defer db.mu.Unlock()
 	if db.closed {
+		db.mu.Unlock()
 		return nil
 	}
 	db.closed = true
-	var mapErr error
+	close(db.stop)
+	var err error
 	for _, t := range db.tables {
-		if e := t.close(); mapErr == nil {
-			mapErr = e
+		if e := t.close(); err == nil {
+			err = e
 		}
 	}
-	err := db.wal.Sync()
+	if e := db.wal.Sync(); err == nil {
+		err = e
+	}
 	if e := db.wal.Close(); err == nil {
 		err = e
 	}
 	if e := db.lock.Close(); err == nil {
 		err = e
 	}
-	if err == nil {
-		err = mapErr
-	}
+	db.mu.Unlock()
+	<-db.done
 	return err
 }
 func (t *sstable) rebuildIndex() error {
@@ -370,7 +451,7 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 		return Entry{}, false, nil
 	}
 	entries := t.index
-	i := sort.Search(len(entries), func(i int) bool { return entries[i].Key > key }) - 1
+	i := indexBefore(entries, key)
 	if i < 0 {
 		return Entry{}, false, nil
 	}
@@ -391,4 +472,8 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 		}
 		offset += n
 	}
+}
+
+func indexBefore(entries []IndexEntry, key string) int {
+	return sort.Search(len(entries), func(i int) bool { return entries[i].Key > key }) - 1
 }
