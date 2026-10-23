@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -145,5 +149,42 @@ func TestConcurrentWrites(t *testing.T) {
 			k := fmt.Sprintf("%d-%d", w, i)
 			want(t, db, k, k, true)
 		}
+	}
+}
+
+func TestBinaryRoundTrip(t *testing.T) {
+	db := openTest(t, Options{})
+	keys := []string{"", "a b\nc\x00", "日本語", "PUT"}
+	values := []string{"", " \n\t\x00\xff", strings.Repeat("v", 1<<20), "<DELETED>"}
+	for i, k := range keys {
+		must(t, db.Put(k, values[i]))
+	}
+	must(t, db.Flush())
+	for i, k := range keys {
+		want(t, db, k, values[i], true)
+	}
+	dir := db.dir
+	must(t, db.Close())
+	db, err := Open(dir, Options{})
+	must(t, err)
+	defer db.Close()
+	for i, k := range keys {
+		want(t, db, k, values[i], true)
+	}
+}
+func TestBinaryCorruption(t *testing.T) {
+	var b bytes.Buffer
+	_, err := writeRecord(&b, Entry{Key: "key", Value: "value"})
+	must(t, err)
+	encoded := append([]byte(nil), b.Bytes()...)
+	for cut := 1; cut < len(encoded); cut++ {
+		_, _, err := readRecord(bufio.NewReader(bytes.NewReader(encoded[:cut])))
+		if err != io.ErrUnexpectedEOF {
+			t.Fatalf("cut %d: %v", cut, err)
+		}
+	}
+	encoded[len(encoded)-1] ^= 1
+	if _, _, err := readRecord(bufio.NewReader(bytes.NewReader(encoded))); err == nil {
+		t.Fatal("corruption accepted")
 	}
 }

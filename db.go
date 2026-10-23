@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -127,9 +128,9 @@ func (db *DB) mutate(e Entry) error {
 		db.mu.RUnlock()
 		return ErrClosed
 	}
-	if strings.ContainsAny(e.Key, " \t\r\n") || e.Key == "" || strings.ContainsAny(e.Value, "\r\n") {
+	if len(e.Key)+len(e.Value) > maxRecordSize {
 		db.mu.RUnlock()
-		return errors.New("invalid text key/value")
+		return errors.New("record exceeds 64 MiB limit")
 	}
 	shard := db.mem.shard(e.Key)
 	shard.mu.Lock()
@@ -266,33 +267,6 @@ func (db *DB) Close() error {
 	}
 	return err
 }
-func writeRecord(w io.Writer, e Entry) (int64, error) {
-	var s string
-	if e.Deleted {
-		s = "DELETE " + e.Key + "\n"
-	} else {
-		s = "PUT " + e.Key + " " + e.Value + "\n"
-	}
-	n, err := io.WriteString(w, s)
-	return int64(n), err
-}
-func readRecord(r *bufio.Reader) (Entry, int64, error) {
-	s, err := r.ReadString('\n')
-	if err != nil {
-		if err == io.EOF && len(s) > 0 {
-			err = io.ErrUnexpectedEOF
-		}
-		return Entry{}, 0, err
-	}
-	p := strings.SplitN(strings.TrimSuffix(s, "\n"), " ", 3)
-	if len(p) == 2 && p[0] == "DELETE" {
-		return Entry{Key: p[1], Deleted: true}, int64(len(s)), nil
-	}
-	if len(p) == 3 && p[0] == "PUT" {
-		return Entry{Key: p[1], Value: p[2]}, int64(len(s)), nil
-	}
-	return Entry{}, 0, errors.New("invalid text record")
-}
 func (t *sstable) rebuildIndex() error {
 	f, err := os.Open(t.path)
 	if err != nil {
@@ -322,7 +296,7 @@ func (t *sstable) rebuildIndex() error {
 			return errors.New("unsorted SSTable")
 		}
 		if count%10 == 0 {
-			if _, err = fmt.Fprintf(index, "%s %d\n", e.Key, offset); err != nil {
+			if _, err = writeIndex(index, e.Key, offset); err != nil {
 				index.Close()
 				return err
 			}
@@ -346,23 +320,23 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 		return Entry{}, false, err
 	}
 	var entries []IndexEntry
-	s := bufio.NewScanner(idx)
-	for s.Scan() {
-		p := strings.SplitN(s.Text(), " ", 2)
-		if len(p) != 2 {
-			idx.Close()
-			return Entry{}, false, errors.New("invalid index")
+	rIndex := bufio.NewReader(idx)
+	for {
+		e, _, readErr := readRecord(rIndex)
+		if readErr == io.EOF {
+			break
 		}
-		offset, err := strconv.ParseInt(p[1], 10, 64)
-		if err != nil {
+		if readErr != nil {
 			idx.Close()
-			return Entry{}, false, err
+			return Entry{}, false, readErr
 		}
-		entries = append(entries, IndexEntry{p[0], offset})
+		if len(e.Value) != 8 {
+			idx.Close()
+			return Entry{}, false, errors.New("invalid index offset")
+		}
+		entries = append(entries, IndexEntry{e.Key, int64(binary.LittleEndian.Uint64([]byte(e.Value)))})
 	}
-	err = s.Err()
-	idx.Close()
-	if err != nil {
+	if err = idx.Close(); err != nil {
 		return Entry{}, false, err
 	}
 	i := sort.Search(len(entries), func(i int) bool { return entries[i].Key > key }) - 1
