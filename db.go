@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -33,14 +34,16 @@ type Options struct {
 	SyncWrites     bool
 }
 type DB struct {
-	mu                 sync.RWMutex
-	dir                string
-	opts               Options
-	mem                map[string]Entry
-	tables             []*sstable
-	nextID, operations int
-	wal, lock          *os.File
-	closed             bool
+	mu         sync.RWMutex
+	dir        string
+	opts       Options
+	mem        *memTable
+	tables     []*sstable
+	nextID     int
+	operations atomic.Int64
+	walMu      sync.Mutex
+	wal, lock  *os.File
+	closed     bool
 }
 
 func Open(dir string, opts Options) (_ *DB, err error) {
@@ -53,7 +56,7 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err = os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	db := &DB{dir: dir, opts: opts, mem: make(map[string]Entry), nextID: 1}
+	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1}
 	db.lock, err = os.OpenFile(filepath.Join(dir, "LOCK"), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
@@ -111,34 +114,43 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 			return nil, fmt.Errorf("WAL recovery: %w", readErr)
 		}
 		valid += n
-		db.mem[e.Key] = e
-		db.operations++
+		db.mem.shard(e.Key).put(e)
+		db.operations.Add(1)
 	}
 	return db, nil
 }
 func (db *DB) Put(key, value string) error { return db.mutate(Entry{Key: key, Value: value}) }
 func (db *DB) Delete(key string) error     { return db.mutate(Entry{Key: key, Deleted: true}) }
 func (db *DB) mutate(e Entry) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+	db.mu.RLock()
 	if db.closed {
+		db.mu.RUnlock()
 		return ErrClosed
 	}
 	if strings.ContainsAny(e.Key, " \t\r\n") || e.Key == "" || strings.ContainsAny(e.Value, "\r\n") {
-		return errors.New("text records require a nonempty whitespace-free key and a single-line value")
+		db.mu.RUnlock()
+		return errors.New("invalid text key/value")
 	}
-	if _, err := writeRecord(db.wal, e); err != nil {
+	shard := db.mem.shard(e.Key)
+	shard.mu.Lock()
+	db.walMu.Lock()
+	_, err := writeRecord(db.wal, e)
+	if err == nil && db.opts.SyncWrites {
+		err = db.wal.Sync()
+	}
+	if err == nil {
+		shard.put(e)
+		db.operations.Add(1)
+	}
+	flush := db.operations.Load() >= int64(db.opts.FlushThreshold)
+	db.walMu.Unlock()
+	shard.mu.Unlock()
+	db.mu.RUnlock()
+	if err != nil {
 		return err
 	}
-	if db.opts.SyncWrites {
-		if err := db.wal.Sync(); err != nil {
-			return err
-		}
-	}
-	db.mem[e.Key] = e
-	db.operations++
-	if db.operations >= db.opts.FlushThreshold {
-		return db.flushLocked()
+	if flush {
+		return db.Flush()
 	}
 	return nil
 }
@@ -148,7 +160,7 @@ func (db *DB) Get(key string) (string, bool, error) {
 	if db.closed {
 		return "", false, ErrClosed
 	}
-	if e, ok := db.mem[key]; ok {
+	if e, ok := db.mem.get(key); ok {
 		return e.Value, !e.Deleted, nil
 	}
 	for i := len(db.tables) - 1; i >= 0; i-- {
@@ -171,13 +183,10 @@ func (db *DB) Flush() error {
 	return db.flushLocked()
 }
 func (db *DB) flushLocked() error {
-	if db.operations == 0 {
+	if db.operations.Load() == 0 {
 		return nil
 	}
-	entries := make([]Entry, 0, len(db.mem))
-	for _, e := range db.mem {
-		entries = append(entries, e)
-	}
+	entries := db.mem.entries()
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
 	t, err := db.writeTable(entries)
 	if err != nil {
@@ -190,8 +199,8 @@ func (db *DB) flushLocked() error {
 	if err = db.wal.Sync(); err != nil {
 		return err
 	}
-	db.mem = make(map[string]Entry)
-	db.operations = 0
+	db.mem = newMemTable()
+	db.operations.Store(0)
 	return nil
 }
 func (db *DB) writeTable(entries []Entry) (*sstable, error) {

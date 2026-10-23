@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -113,5 +115,35 @@ func TestClosed(t *testing.T) {
 	}
 	if _, _, err := db.Get("x"); err != ErrClosed {
 		t.Fatal(err)
+	}
+}
+
+func TestConcurrentWrites(t *testing.T) {
+	db := openTest(t, Options{FlushThreshold: 73})
+	var wg sync.WaitGroup
+	for worker := 0; worker < 16; worker++ {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				k := fmt.Sprintf("%d-%d", w, i)
+				if err := db.Put(k, k); err != nil {
+					t.Error(err)
+					return
+				}
+				v, ok, err := db.Get(k)
+				if err != nil || !ok || v != k {
+					t.Errorf("read after write: %s %v %v", v, ok, err)
+				}
+			}
+		}(worker)
+	}
+	wg.Wait()
+	must(t, db.Flush())
+	for w := 0; w < 16; w++ {
+		for i := 0; i < 100; i++ {
+			k := fmt.Sprintf("%d-%d", w, i)
+			want(t, db, k, k, true)
+		}
 	}
 }
