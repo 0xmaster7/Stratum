@@ -1,0 +1,2 @@
+PASS
+ok  	kvstore	10.210s

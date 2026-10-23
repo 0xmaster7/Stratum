@@ -1,333 +1,223 @@
-# GoLSM — A Log-Structured Key-Value Storage Engine
+# GoLSM
 
-GoLSM is a lightweight persistent key-value store written from scratch in Go, built to explore the internals of **log-structured merge (LSM) storage engines**.
+A persistent key-value store in Go, built from scratch to explore LSM storage engines. Recent writes live in a sharded, slice-chained hash table; older data lives in immutable sorted files. It has a WAL, persistent deletes, binary records with checksums, resident sparse indexes, Bloom filters, mmap reads, an LRU cache, range scans, and background compaction.
 
-I wrote up the design and build process in more detail here: [Stratum: A KV Store in Go](https://stratum.hashnode.dev/stratum-a-kv-store-in-go)
+This is an educational engine with tests and reproducible benchmarks, rather than a production database. The [original design write-up](https://stratum.hashnode.dev/stratum-a-kv-store-in-go) describes the earlier implementation.
 
-Instead of keeping the whole database in memory, GoLSM keeps only recent writes in RAM and persists everything else to disk. It's an educational implementation — not for production — meant to demonstrate the core ideas behind systems like LevelDB/RocksDB/Cassandra's storage layer.
+## Run it
 
----
+Requires **Go 1.25+ on Linux or macOS**. There are no third-party dependencies. Run the entire package with `go run .`; the engine now spans several files.
 
-## Why not just append everything to a log?
-
-A naive persistent KV store just appends every operation to a file and rebuilds state on startup by:
-1. Reading the entire log from disk
-2. Parsing every operation
-3. Hashing every key
-4. Reconstructing the full in-memory table
-
-This works for small datasets but gets expensive fast as the number of keys grows into the millions. GoLSM avoids requiring the whole DB to live in memory by splitting storage into two zones:
-
-```
-RAM
-└── MemTable — recent writes
-
-DISK
-├── Write-Ahead Log — crash recovery for the MemTable
-├── SSTable 1
-├── SSTable 2
-├── SSTable 3 ...  — persisted database state
+```sh
+go run . -dir ./data -sync-writes
 ```
 
-Recent writes go into an in-memory hash table (MemTable). Once enough writes accumulate, the MemTable is sorted and flushed to disk as an immutable **SSTable**.
+The CLI accepts one command per line:
 
----
-
-## Architecture
-
-```
-PUT / DELETE
-     ↓
-Write-Ahead Log (data.log)
-     ↓
-MemTable (in-memory hash table)
-     ↓
-[flush threshold reached]
-     ↓
-Sort entries by key
-     ↓
-SSTable N (sorted key-values)
-     ↓
-Sparse Index (key → byte offset)
-```
-
-Four core components, each solving a different storage problem:
-- **Write-Ahead Log (WAL)** — durability
-- **MemTable** — fast recent writes
-- **SSTables** — durable sorted storage
-- **Sparse Indexes** — fast lookups without scanning whole files
-
----
-
-## Write Path
-
-```
-PUT(key, value)
-  → Append operation to WAL
-  → Update MemTable
-  → Increment WAL operation count
-  → Check flush threshold
-       ├── below threshold → continue normally
-       └── threshold reached:
-            → Collect MemTable entries
-            → Sort by key
-            → Write immutable SSTable
-            → Generate sparse index
-            → Sync files to disk
-            → Truncate WAL
-            → Clear MemTable
-```
-
-**Key detail:** the WAL is written *before* the MemTable is updated. This ordering matters — if the process crashes between the WAL write and the MemTable update completing, the operation is still recoverable on disk and gets replayed on restart.
-
----
-
-## Write-Ahead Log (WAL)
-
-The WAL provides durability for whatever's currently sitting in the MemTable (which lives only in RAM). Stored in `data.log`, operations are appended sequentially:
-
-```
+```text
 PUT apple red
 PUT banana yellow
-PUT apple green
-DELETE banana
+GET apple
+DELETE apple
+FLUSH
+GET apple
+SCAN - - 20
+COMPACT
+STATS
+EXIT
 ```
 
-The WAL logs *operations*, not final state — so multiple versions of the same key can exist in it. E.g. `PUT user Alice`, `PUT user Bob`, `PUT user Charlie` → current value is `Charlie`, but all three entries remain in the WAL until the MemTable is flushed.
+`GET apple` first prints `red`, then `key not found` after deletion. `SCAN` prints a JSON array of live entries in sorted order. `STATS` prints JSON metrics. EOF also closes the store. This command interface replaces the old numeric menu.
 
-**Why it exists:** without a WAL, a crash after writing to the MemTable (RAM-only) loses that data entirely. With a WAL, a crash is recoverable — on restart, GoLSM replays `data.log` to rebuild the MemTable.
+| Command | Behavior |
+| --- | --- |
+| `PUT key value` | Insert or replace; the value can contain spaces |
+| `GET key` | Print the latest value, or `key not found` |
+| `DELETE key` | Write a tombstone, including for keys found only on disk |
+| `SCAN start end [limit]` | Sorted interval `[start, end)`; `-` is an unbounded endpoint; omit the limit or use `0` for all results |
+| `FLUSH` | Persist the current memtable as an SSTable and reset the WAL |
+| `COMPACT` | Flush pending writes and merge all active SSTables |
+| `STATS` | Inspect counters, memory/disk gauges, and background errors |
+| `EXIT` / `QUIT` | Sync and close the WAL, stop the worker, release mappings and the directory lock |
 
----
+The line-based CLI uses single-token keys and trims outer whitespace. The underlying Go methods support empty strings, whitespace, NULs, and arbitrary bytes in both keys and values. Keys sort by Go's bytewise string order. Records are limited to **64 MiB of key plus value**. The CLI scanner has its standard 64 KiB token limit; use the engine methods for larger records.
 
-## MemTable
+## Configuration and engine methods
 
-Stores recent writes in memory, implemented as a **hash table with separate chaining**:
-
-```
-table
-├── Bucket 0 → Entry, Entry
-├── Bucket 1 → Entry
-├── Bucket 2 → ...
-```
-
-Each entry holds a `Key` + `Value`. Hashing uses **FNV-1a (64-bit)**, with bucket selection via `hash(key) % BUCKET_SIZE`.
-
-**PUT logic:**
-1. Hash the key
-2. Select the bucket
-3. Search the bucket for the key
-4. If found, update the value
-5. Otherwise, append a new entry
-
-This collapses repeated updates to the same key within the MemTable — e.g. `PUT apple 1/2/3` in the WAL results in a single `apple → 3` entry in the MemTable. So when flushed, only the latest state per key is written to the SSTable.
-
----
-
-## SSTables (Sorted String Tables)
-
-An SSTable is an **immutable, sorted** collection of key-value entries stored on disk, named `sstable_1.log`, `sstable_2.log`, etc. Each represents one flushed MemTable.
-
-**Creation, triggered when the WAL threshold is hit:**
-1. Collect all MemTable entries
-2. Copy into a linear slice
-3. Sort lexicographically by key
-4. Create a new SSTable file
-5. Write sorted entries sequentially
-6. Generate a sparse index
-7. Sync both files to disk
-8. Truncate the WAL
-9. Clear the MemTable
-
-Example: MemTable `{dog:40, apple:10, fish:60, banana:20}` → sorted → SSTable file:
-```
-PUT apple 10
-PUT banana 20
-PUT dog 40
-PUT fish 60
+```sh
+go run . -dir ./data \
+  -sync-writes \
+  -flush-threshold=1000 \
+  -cache-bytes=16777216 \
+  -compaction-interval=30s \
+  -compaction-threshold=4
 ```
 
-**Why immutable?** Inserting a new key (e.g. `cat`) into an already-sorted on-disk file would require rewriting part or all of it. Instead, GoLSM buffers new writes in a fresh MemTable and later flushes *another* sorted SSTable (`sstable_2.log`, `sstable_3.log`, ...). This keeps writes cheap — at the cost of needing compaction later (see below).
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `SyncWrites` / `-sync-writes` | `false` | `fsync` the WAL for each acknowledged mutation when enabled |
+| `FlushThreshold` / `-flush-threshold` | `1000` | Flush after this many WAL operations, including updates and deletes |
+| `CacheBytes` / `-cache-bytes` | `16 MiB` | Estimated LRU budget; `-1` disables the cache |
+| `CompactionInterval` / `-compaction-interval` | `30s` | How often the worker checks the SSTable count; a negative duration disables it |
+| `CompactionThreshold` / `-compaction-threshold` | `4` | Minimum active SSTable count that triggers the worker; must be at least `2` |
 
----
+Zero-valued numeric/duration fields in `Options` select defaults. For example, `Options{CompactionInterval: -1, CacheBytes: -1}` disables automatic compaction and caching. At the CLI use `-compaction-interval=-1s`.
 
-## Sparse Indexing
+The engine is currently in `package main`, alongside the CLI. Its testable methods are:
 
-Reading an entire SSTable into memory on every GET would defeat the purpose of keeping data on disk. Even with `O(log n)` binary search, just *reading* the file is `O(n)`.
-
-So each SSTable gets a matching sparse index file (`sstable_1.log` + `sstable_1.index`) storing selected keys and their byte offsets — **not every key**, just periodic checkpoints (currently every **10 entries**).
-
-Example SSTable with byte offsets:
-```
-0    PUT apple 10
-13   PUT banana 20
-27   PUT cat 30
-...
-```
-Sparse index might store: `apple 0`, `dog 38`, `grape 77`
-
-**Index generation** (while writing the SSTable): for every entry, if its index is divisible by 10, capture the *current* byte offset (before writing the entry, so the index points to the entry's start) and write `key + offset` to the index file.
-
----
-
-## Read Path
-
-```
-GET(key)
-  → Search MemTable
-       ├── Found → return value
-       └── Not found → Search SSTables (newest → oldest)
+```go
+db, err := Open("./data", Options{SyncWrites: true})
+// Handle err, then defer db.Close().
+err = db.Put("name", "Keshav")
+value, found, err := db.Get("name")
+err = db.Delete("name")
+rows, err := db.Scan("a", "z", 100) // a inclusive, z exclusive
+err = db.Flush()
+err = db.Compact()
+metrics := db.Stats()
 ```
 
-SSTables are searched newest-to-oldest because later SSTables hold more recent data — the first match found is the correct (latest) value.
+These are engine entry points for code in this package, not an independently importable library API. `Get` distinguishes an empty value (`found == true`) from a missing/deleted key (`found == false`). A zero scan limit is unlimited, and an empty `end` is unbounded. Methods reject operations after close with `ErrClosed`; `Close` is idempotent.
 
-**Sparse index lookup, per SSTable:**
-```
-Open sparse index → Load entries → Binary search
-  → Find greatest indexed key ≤ target
-  → Retrieve byte offset → Seek directly into SSTable
-  → Scan forward
-```
+## How storage works
 
-Example: index has `apple→0, dog→100, grape→200, mango→300`. Query `GET fish` → closest checkpoint ≤ `fish` is `dog→100` → seek to byte 100 → scan forward (`dog, elephant, fish`) → found.
+```text
+PUT / DELETE
+    │
+    ├── lock the key's shard
+    ├── append checked binary record to WAL
+    ├── optionally fsync WAL
+    └── update that shard's slice-chained hash table
+                         │
+                  flush threshold
+                         │
+                sort current entries
+                         │
+            write and sync SSTable + index
+                         │
+              atomically replace MANIFEST
+                         │
+               sync directory, reset WAL
 
-**Early termination:** since SSTables are sorted, a scan can stop as soon as it passes the target alphabetically. If scanning for `fish` and the file hits `dog, elephant, grape` — since `grape > fish`, `fish` cannot appear later, so the scan aborts and moves to the next older SSTable.
-
----
-
-## Crash Recovery
-
-On startup the MemTable is empty (RAM state is gone). GoLSM rebuilds it by replaying the WAL:
-
-```
-Program starts → Open data.log → Read WAL operations
-  → Replay PUT / DELETE → Rebuild MemTable
-```
-
-The WAL operation counter is also reconstructed during replay (e.g. `data.log` has 900 ops → after restart counter resets to 0 → after replay it's back to 900), ensuring the flush threshold logic stays correct post-crash.
-
-**SSTable numbering must stay unique across restarts.** At startup, GoLSM scans the directory for files matching `sstable_<number>.log`, extracts the numeric part of each (e.g. `sstable_17.log` → strip `sstable_` and `.log` → `17` → int), finds the max, and sets the next SSTable index to `max + 1`. This prevents existing SSTables from being overwritten.
-
----
-
-## Hash Table Resizing
-
-The MemTable resizes dynamically based on load factor:
-```
-load_factor = ENTRIES / BUCKET_SIZE
-```
-When load factor exceeds **0.75**, bucket count doubles (e.g. 100 → 200). Since bucket assignment depends on `hash(key) % BUCKET_SIZE`, every existing entry must be **rehashed and reinserted** into the new table after a resize.
-
----
-
-## Current Storage Format
-
-**WAL:**
-```
-PUT <key> <value>     e.g. PUT username keshav
-DELETE <key>          e.g. DELETE username
+GET
+    memtable → LRU → SSTables newest first
+                         │
+                key bounds → Bloom filter
+                         │
+                resident sparse index
+                         │
+                decode mapped records
 ```
 
-**SSTable:** same `PUT <key> <value>` format, entries sorted lexicographically by key.
+- **Memtable:** 256 shards, each with its own `RWMutex`. Each shard uses FNV-1a hashing and slices for separate chaining, with local resizing above a 0.75 load factor. A directory-wide lock excludes a second process. The WAL append mutex preserves record integrity; operations on the same key retain WAL/memtable ordering. WAL appends remain serialized.
+- **Tombstones:** deletion is a record flag, not a special user value. `<DELETED>` is a normal value. A tombstone stops older versions from being returned, including after a flush or restart.
+- **Sparse indexes:** one key/offset checkpoint per 10 records, retained in memory. Binary search chooses a checkpoint; a short forward scan resolves the lookup. Key bounds skip unrelated files.
+- **Bloom filters:** approximately 10 bits per key and seven probes. Filters include tombstones. A negative answer skips the table; a possible match still checks the actual records.
+- **mmap:** immutable SSTable `.log` and `.index` files are mapped read-only. Point reads decode records from the mapping without reopening files. The mutable WAL uses ordinary append I/O.
+- **LRU:** caches successful disk reads. Mutations invalidate their keys, and flush/compaction clear the cache. Its budget counts key/value bytes plus an estimated 64 bytes per entry; it is not a bound on total process RSS.
+- **Compaction:** a streaming heap merge resolves duplicate keys newest-first. Because every active SSTable and the flushed memtable participate, obsolete versions and tombstones can be dropped safely. A synced manifest publishes the replacement before old files are removed.
+- **Ranges:** merge sorted memtable entries with the newest disk versions, hide tombstones, and return a consistent ordered view.
 
-**Sparse Index:** `<key> <byte_offset>`, e.g.:
+Flushes, compactions, and scans take the exclusive database lock. The compactor is scheduled in a background goroutine, but a running merge pauses other database operations. This version favors simple publication and mapping lifetimes over concurrent compaction.
+
+## Files, recovery, and durability
+
+```text
+data/
+├── LOCK                  # advisory exclusive process lock
+├── MANIFEST              # JSON list of the active SSTable IDs
+├── data.log              # write-ahead log
+├── sstable_1.log          # sorted records; binary despite the .log suffix
+├── sstable_1.index        # sparse binary key/offset records
+└── ...
 ```
-apple 0
-dog 153
-grape 321
-mango 502
+
+Each new binary record contains:
+
+```text
+magic "KVR1" (4) | deletion flag (1) | key length (4) | value length (4)
+CRC32C (4) | key bytes | value bytes
 ```
-Offsets stored as signed 64-bit integers (matching Go's file offset type).
 
----
+Lengths and checksums use little-endian encoding. CRC32C covers the flag, lengths, and payload. Index records use the same envelope, with an eight-byte offset as the value.
 
-## Complexity
+On open, the engine validates active SSTables, rebuilds their indexes and Bloom filters once, maps the files, and replays the WAL. **Startup scans all active SSTable records**; metadata is not yet loaded from a persistent Bloom-filter format. A final incomplete WAL record is truncated. Malformed complete records and checksum failures produce errors. Legacy text `PUT key value` and `DELETE key` records remain readable, including in a WAL followed by newer binary records. A legacy directory gains a manifest automatically; future flushes and compactions write binary data. Old deletions that the earlier implementation already lost cannot be reconstructed.
 
-| Operation | Complexity | Notes |
-|---|---|---|
-| MemTable PUT | O(1) avg | hashing + separate chaining |
-| MemTable GET | O(1) avg | |
-| MemTable DELETE | O(1) avg | bucket deletion may shift slice elements |
-| SSTable flush — collect | O(n) | |
-| SSTable flush — sort | O(n log n) | dominates overall flush cost |
-| SSTable flush — write | O(n) | sequential write |
-| Sparse index search | O(log k) | k = number of index entries, after index is loaded |
-| SSTable block scan | small | scans a region near the checkpoint (interval B=10) rather than the whole file |
+A flush syncs its output files, atomically replaces and syncs the manifest, and only then truncates and syncs the WAL. If a process stops between publication and WAL reset, replay can duplicate the same logical versions without changing the result. Files absent from an existing manifest are ignored and cleaned up on open; missing referenced files are an error. Compaction uses the same publication boundary so leftover old files cannot resurrect deleted keys.
 
-**Multi-SSTable lookup:** worst case, a GET must search several SSTables — as SSTable count grows, read amplification increases. This is the primary motivation for compaction.
+**Durability mode matters:**
 
----
+- With the default `SyncWrites: false`, each mutation reaches the OS through the WAL before memory changes, but power loss can lose acknowledged writes that have not been synced. Flush and close sync their persistent output.
+- With `SyncWrites: true`, each mutation waits for WAL `fsync` before it updates memory and returns. This has substantially higher latency on the benchmark host.
+- WAL or manifest-publication failures stop further writes until reopen. A mutation can have reached the WAL even when its subsequent sync or automatic flush returns an error; callers should treat such errors as an uncertain outcome and inspect/reopen the database.
 
-## Current Limitations
+Keep database files under the engine's exclusive ownership. External modification or truncation of mapped files is unsupported.
 
-GoLSM is an educational engine, not production-ready:
+## Metrics
 
-- **No tombstones yet** — `DELETE` only removes a key from the MemTable. If that key already exists in an older SSTable, the delete doesn't propagate — reads would still find the old value (fix: introduce tombstone markers).
-- **No SSTable compaction** — old key versions across multiple SSTables just accumulate, consuming disk space. Reads still return correct (newest) values since SSTables are searched newest-first, but space is wasted.
-- **Sparse indexes are re-parsed on every GET** — no caching; each lookup re-opens and re-parses the index file.
-- **Text-based SSTable encoding** — human-readable (`PUT apple red`), which requires string parsing on read. A binary format (`[key len][value len][key bytes][value bytes]`) would be faster and more robust.
-- **No Bloom filters** — a missing-key lookup may still need to check multiple SSTables before concluding the key doesn't exist.
-- **No concurrency control** — single-process, no synchronization for concurrent readers/writers.
-- **Flush is not atomic (crash-during-flush edge case)** — under normal single-threaded operation the WAL stays small (it's truncated as soon as the flush threshold, e.g. 1,000 ops, is hit — it should never realistically approach something like 5,000 ops). But if the process crashes *mid-flush* — after `sstable_N.log` / `sstable_N.index` are written and synced, but before the WAL is truncated — the WAL still holds those same operations. On restart, replay re-inserts a batch that's already been persisted in an SSTable, so the same writes end up represented in both places. This is a flush atomicity/recovery problem, parked here for now — the plan is to move on to tombstones first and revisit atomic flush later.
+`STATS` / `Stats()` expose process-local counters for writes, deletes, gets/misses, memtable/cache hits, Bloom checks/skips, table checks/reads, decoded records/bytes, WAL bytes, flushes, compactions, scans, and elapsed maintenance/recovery/startup time in nanoseconds.
 
----
+Gauges include active SSTables, memtable entries, pending WAL operations, estimated cache bytes/budget, mapped bytes, Bloom bytes, sparse-index entries, and active database disk bytes. Background compaction and write errors are exposed as strings. `LogicalReadBytes`, `RecordsRead`, and table counters describe **point lookups**; they do not measure physical disk traffic or include scan/compaction/startup reads. Mapped size is virtual mapped bytes, not resident memory. Disk bytes cover the WAL, manifest, and active SSTable/index files.
 
-## Planned Improvements
+## Validation
 
-1. **Tombstones** — represent deletes as persistent markers (`DELETE apple` → internally `apple → TOMBSTONE`); GET operations stop searching older SSTables once a tombstone is hit.
+```sh
+go vet ./...
+go test -race -count=1 ./...
+```
 
-2. **SSTable Compaction** — merge multiple SSTables into one newer sorted SSTable:
-   ```
-   SSTable 1 + SSTable 2 + SSTable 3 → Compaction → Merged SSTable
-   ```
-   Removes obsolete key versions, preserves the newest value, processes tombstones safely, reduces disk usage and read amplification.
+Tests cover deletes across flush/restart, literal tombstone-like values, binary and legacy records, sparse boundaries, corrupt and incomplete records, exclusive opens, cache eviction/invalidation, concurrent writes, scans, background compaction, unpublished/missing tables, publication failures, WAL replay after a published flush, and a randomized model with repeated reopen/compaction. Both Linux and macOS are exercised. These are functional and race checks; they do not constitute a hardware power-failure certification.
 
-3. **In-Memory Sparse Index Metadata** — load all sparse indexes once at startup and keep them in memory (`SSTable N → []IndexEntry`), so GETs binary-search in-memory instead of re-reading index files from disk each time.
+## Benchmarks
 
-4. **Bloom Filters** — each SSTable maintains a Bloom filter:
-   ```
-   GET key → Bloom Filter
-     ├── definitely absent → skip SSTable
-     └── possibly present → check sparse index → seek
-   ```
-   Expected to significantly speed up missing-key lookups.
+Measured on **pancakes**, Linux/amd64, Go 1.25.1, with 2 vCPUs from an AMD EPYC 7763 and approximately 8 GiB RAM. The run began **October 23, 2026 at 20:36 UTC** (October 24 in India). Engine revision: `03b42cf`. Values below are medians of three samples, not best-case results.
 
-5. **Binary SSTable Encoding** — replace text-based records with length-prefixed binary records:
-   ```
-   | Key Length | Value Length | Key Bytes | Value Bytes |
-   ```
-   Benefits: reduced parsing overhead, smaller storage footprint, support for spaces and arbitrary byte sequences, more predictable/robust decoding.
+| Microbenchmark | Median time/op | Bytes/op | Allocs/op |
+| --- | ---: | ---: | ---: |
+| PUT, buffered WAL, including threshold flushes | 33.66 µs | 873 | 8 |
+| PUT, per-write WAL fsync | 4.87 ms | 194 | 2 |
+| GET, memtable | 130.6 ns | 0 | 0 |
+| GET, mapped SSTable, LRU disabled | 1.69 µs | 704 | 11 |
+| GET, prewarmed LRU | 190.7 ns | 0 | 0 |
+| GET, absent key with Bloom filter | 185.0 ns | 6 | 0 |
+| GET, absent key with Bloom disabled | 927.0 ns | 831 | 12 |
+| GET, parallel memtable throughput | 79.3 ns | 0 | 0 |
+| Parallel mix: 50% read / 50% write | 25.03 µs | 863 | 10 |
+| Parallel mix: 95% read / 5% write | 2.83 µs | 434 | 6 |
+| SCAN, return 100 keys | 43.09 µs | 32,737 | 337 |
+| FLUSH, 1,000 records | 27.63 ms | 627,475 | 5,464 |
+| COMPACT, four versions of 1,000 keys | 29.77 ms | 989,086 | 13,216 |
+| OPEN + CLOSE, replay 20,000 WAL records | 14.71 ms | 9,997,136 | 126,425 |
 
-6. **Range Queries** — since SSTables are sorted, the engine can support range scans, e.g.:
-   ```
-   SCAN apple mango
-   ```
-   returning all keys within a sorted range.
+Parallel `ns/op` describes aggregate throughput across Go benchmark workers, not individual request latency. Per-write fsync ranged from **4.86 to 13.27 ms/op** across samples; its one-second samples performed fewer than 1,000 operations, so they did not trigger a threshold flush. Recovery here measures a WAL-only database, not startup over a large collection of SSTables. Flush/compaction timing excludes seeding the data.
 
-7. **Benchmarking** — the engine will be benchmarked across each implementation stage to quantify *why* each component exists, not just measure the final result. Planned metrics:
-   - PUT / GET throughput
-   - Random read latency
-   - Sequential read latency
-   - Missing-key latency
-   - p50 / p95 / p99 GET latency
-   - WAL recovery time
-   - SSTable flush time
-   - Bytes read per GET
-   - Disk usage
-   - Read amplification
+The separate, **single-worker buffered-WAL workload** produced:
 
-   Comparisons will be run incrementally to isolate the effect of each optimization:
-   ```
-   Baseline (WAL + MemTable)
-     → + SSTables
-     → + Sparse Index
-     → + In-Memory Index Metadata
-     → + Bloom Filters
-     → + Compaction
-     → + Binary Encoding
-   ```
+| Read / write mix | Median ops/s | Read p50 | Read p95 | Read p99 | Write p99 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 50 / 50 | 58,996 | 1.83 µs | 4.55 µs | 9.36 µs | 10.18 µs |
+| 95 / 5 | 357,251 | 972.0 ns | 2.77 µs | 6.05 µs | 14.26 µs |
+| 100 / 0 | 1,092,840 | 270.0 ns | 2.27 µs | 5.33 µs | — |
 
----
+These columns are medians of per-trial values, not percentiles pooled across trials. Threshold flushes occur on roughly 0.1% of writes, so p99 does **not** capture the full flush tail even though throughput includes those pauses. In the 50/50 workload, compaction reduced the median active disk footprint from **6.09 MB to 2.74 MB** (about **55%**) and took a median **92.1 ms** for 20,000 live keys. Full race checks passed on Linux and macOS.
 
-## Project Goals
+Reproduce the measurements from the repository root:
 
-GoLSM is built to understand storage engines from first principles. The implementation intentionally builds each component (WAL, MemTable, SSTables, sparse indexing, etc.) directly, rather than relying on an existing embedded database library — the point is learning *why* each piece exists, not just having a working KV store.
+```sh
+./benchmarks/run.sh
+```
+
+The script runs `go vet`, the full race suite, three one-second samples of each point-operation benchmark, three five-iteration samples of flush/compaction/recovery, and three trials of each mixed workload. Raw results and hardware details are in [`benchmarks/`](benchmarks/). Benchmark data uses temporary directories.
+
+The mixed workload runner performs 50,000 operations against 20,000 initially populated keys per trial, with uniform key selection, 16-byte keys, and 100-byte values. Writes update existing keys. It records throughput and p50/p95/p99 read/write latency, then measures compaction and validates every key after reopen. Automatic compaction is disabled during measurements; buffered and mixed write benchmarks include synchronous threshold flushes. The in-process ratios resemble common YCSB read/update mixes, but this is **not a YCSB or memtier run**. There is no network protocol for memtier to target.
+
+Read data fits in RAM, and mapped-read tests have warm OS page caches. The cached benchmark prewarms the LRU; the SSTable and missing-key benchmarks disable it. The missing-key comparison changes only the Bloom filter. These numbers do not describe cold-device reads, large datasets under memory pressure, or remote-client latency. Microbenchmark `ns/op` is an average; workload latency percentiles come from per-operation wall-clock samples and include instrumentation overhead. No speedup over the original implementation is claimed without a comparable baseline.
+
+## Remaining limits
+
+- Single process per directory; Linux/macOS only. No network API, transactions, replication, or multi-key atomic writes.
+- Flush/compaction/scan pause concurrent operations. Flush sorting uses memory proportional to the memtable; scans materialize memtable entries and their returned results.
+- The memtable flush threshold counts operations, not bytes. There is no total-memory budget or write backpressure; large records can consume substantial memory before a flush.
+- Compaction merges all active tables; there are no levels, size-based scheduling, compression, or incremental compaction jobs.
+- Startup validates all SSTables and rewrites sparse indexes. Bloom filters are rebuilt rather than persisted.
+- WAL records have checksums, but there are no sequence-numbered batches, transactions, or fault-injection coverage of every filesystem failure boundary.
