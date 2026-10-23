@@ -35,10 +35,12 @@ type sstable struct {
 	path, indexPath string
 }
 type Options struct {
+	CacheBytes     int
 	FlushThreshold int
 	SyncWrites     bool
 }
 type DB struct {
+	cache      *readCache
 	mu         sync.RWMutex
 	dir        string
 	opts       Options
@@ -52,6 +54,12 @@ type DB struct {
 }
 
 func Open(dir string, opts Options) (_ *DB, err error) {
+	if opts.CacheBytes == 0 {
+		opts.CacheBytes = 16 << 20
+	}
+	if opts.CacheBytes < -1 {
+		return nil, errors.New("cache bytes must be -1 (disabled), zero (default), or positive")
+	}
 	if opts.FlushThreshold == 0 {
 		opts.FlushThreshold = 1000
 	}
@@ -61,7 +69,7 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err = os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1}
+	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes)}
 	db.lock, err = os.OpenFile(filepath.Join(dir, "LOCK"), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
@@ -151,6 +159,7 @@ func (db *DB) mutate(e Entry) error {
 	}
 	if err == nil {
 		shard.put(e)
+		db.cache.remove(e.Key)
 		db.operations.Add(1)
 	}
 	flush := db.operations.Load() >= int64(db.opts.FlushThreshold)
@@ -174,12 +183,18 @@ func (db *DB) Get(key string) (string, bool, error) {
 	if e, ok := db.mem.get(key); ok {
 		return e.Value, !e.Deleted, nil
 	}
+	if value, ok := db.cache.get(key); ok {
+		return value, true, nil
+	}
 	for i := len(db.tables) - 1; i >= 0; i-- {
 		e, ok, err := db.tables[i].get(key)
 		if err != nil {
 			return "", false, err
 		}
 		if ok {
+			if !e.Deleted {
+				db.cache.put(key, e.Value)
+			}
 			return e.Value, !e.Deleted, nil
 		}
 	}
@@ -211,6 +226,7 @@ func (db *DB) flushLocked() error {
 		return err
 	}
 	db.mem = newMemTable()
+	db.cache.clear()
 	db.operations.Store(0)
 	return nil
 }
