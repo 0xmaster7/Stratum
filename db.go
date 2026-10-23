@@ -43,6 +43,7 @@ type Options struct {
 	SyncWrites          bool
 }
 type DB struct {
+	metrics                 counters
 	stop, done              chan struct{}
 	writeErr, backgroundErr error
 	walErr                  error
@@ -60,6 +61,7 @@ type DB struct {
 }
 
 func Open(dir string, opts Options) (_ *DB, err error) {
+	started := time.Now()
 	if opts.CompactionInterval == 0 {
 		opts.CompactionInterval = 30 * time.Second
 	}
@@ -145,6 +147,7 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err != nil {
 		return nil, err
 	}
+	recoveryStarted := time.Now()
 	r := bufio.NewReader(db.wal)
 	var valid int64
 	for {
@@ -165,16 +168,31 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 		db.mem.shard(e.Key).put(e)
 		db.operations.Add(1)
 	}
+	db.metrics.recoveryOps.Store(uint64(db.operations.Load()))
+	db.metrics.recoveryNanos.Store(uint64(time.Since(recoveryStarted)))
 	if !hasManifest {
 		if err = db.publish(db.tables); err != nil {
 			return nil, err
 		}
 	}
+	db.metrics.startupNanos.Store(uint64(time.Since(started)))
 	go db.runCompactor()
 	return db, nil
 }
-func (db *DB) Put(key, value string) error { return db.mutate(Entry{Key: key, Value: value}) }
-func (db *DB) Delete(key string) error     { return db.mutate(Entry{Key: key, Deleted: true}) }
+func (db *DB) Put(key, value string) error {
+	err := db.mutate(Entry{Key: key, Value: value})
+	if err == nil {
+		db.metrics.puts.Add(1)
+	}
+	return err
+}
+func (db *DB) Delete(key string) error {
+	err := db.mutate(Entry{Key: key, Deleted: true})
+	if err == nil {
+		db.metrics.deletes.Add(1)
+	}
+	return err
+}
 func (db *DB) mutate(e Entry) error {
 	db.mu.RLock()
 	if db.closed {
@@ -197,7 +215,9 @@ func (db *DB) mutate(e Entry) error {
 	if db.walErr != nil {
 		err = db.walErr
 	} else {
-		_, err = writeRecord(db.wal, e)
+		var n int64
+		n, err = writeRecord(db.wal, e)
+		db.metrics.walBytes.Add(uint64(n))
 	}
 	if err == nil && db.opts.SyncWrites {
 		err = db.wal.Sync()
@@ -222,20 +242,39 @@ func (db *DB) mutate(e Entry) error {
 	}
 	return nil
 }
-func (db *DB) Get(key string) (string, bool, error) {
+func (db *DB) Get(key string) (value string, exists bool, readErr error) {
+	defer func() {
+		if readErr == nil && !exists {
+			db.metrics.misses.Add(1)
+		}
+	}()
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 	if db.closed {
 		return "", false, ErrClosed
 	}
+	db.metrics.gets.Add(1)
 	if e, ok := db.mem.get(key); ok {
+		db.metrics.memHits.Add(1)
 		return e.Value, !e.Deleted, nil
 	}
 	if value, ok := db.cache.get(key); ok {
+		db.metrics.cacheHits.Add(1)
 		return value, true, nil
 	}
 	for i := len(db.tables) - 1; i >= 0; i-- {
-		e, ok, err := db.tables[i].get(key)
+		t := db.tables[i]
+		db.metrics.tableChecks.Add(1)
+		if t.count == 0 || key < t.minKey || key > t.maxKey {
+			continue
+		}
+		db.metrics.bloomChecks.Add(1)
+		if !t.bloom.contains(key) {
+			db.metrics.bloomSkips.Add(1)
+			continue
+		}
+		db.metrics.tableReads.Add(1)
+		e, ok, err := t.get(key, &db.metrics)
 		if err != nil {
 			return "", false, err
 		}
@@ -266,6 +305,7 @@ func (db *DB) flushLocked() error {
 	if db.operations.Load() == 0 {
 		return nil
 	}
+	started := time.Now()
 	entries := db.mem.entries()
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
 	t, err := db.writeTable(entries)
@@ -288,6 +328,8 @@ func (db *DB) flushLocked() error {
 	db.mem = newMemTable()
 	db.cache.clear()
 	db.operations.Store(0)
+	db.metrics.flushes.Add(1)
+	db.metrics.flushNanos.Add(uint64(time.Since(started)))
 	return nil
 }
 func (db *DB) writeTable(entries []Entry) (*sstable, error) {
@@ -446,8 +488,8 @@ func (t *sstable) rebuildIndex() error {
 	}
 	return os.Rename(t.indexPath+".tmp", t.indexPath)
 }
-func (t *sstable) get(key string) (Entry, bool, error) {
-	if t.count == 0 || key < t.minKey || key > t.maxKey || !t.bloom.contains(key) {
+func (t *sstable) get(key string, metrics *counters) (Entry, bool, error) {
+	if t.count == 0 || key < t.minKey || key > t.maxKey {
 		return Entry{}, false, nil
 	}
 	entries := t.index
@@ -458,6 +500,10 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 	offset := entries[i].Offset
 	for {
 		e, n, err := recordAt(t.data, offset)
+		if err == nil {
+			metrics.recordsRead.Add(1)
+			metrics.readBytes.Add(uint64(n))
+		}
 		if err == io.EOF {
 			return Entry{}, false, nil
 		}

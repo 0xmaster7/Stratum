@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	fmt.Println("GoLSM: PUT key value | GET key | DELETE key | SCAN start end [limit] | FLUSH | COMPACT | EXIT")
+	fmt.Println("GoLSM: PUT key value | GET key | DELETE key | SCAN start end [limit] | FLUSH | COMPACT | STATS | EXIT")
 	in := bufio.NewScanner(os.Stdin)
 	for in.Scan() {
 		line := strings.TrimSpace(in.Text())
@@ -57,6 +57,8 @@ func main() {
 			} else {
 				err = db.Delete(parts[1])
 			}
+		case "STATS":
+			err = json.NewEncoder(os.Stdout).Encode(db.Stats())
 		case "SCAN":
 			args := strings.Fields(line)
 			if len(args) < 3 || len(args) > 4 {

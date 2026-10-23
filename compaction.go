@@ -83,6 +83,7 @@ func (db *DB) Compact() error {
 	if len(db.tables) < 2 {
 		return nil
 	}
+	started := time.Now()
 	old := append([]*sstable(nil), db.tables...)
 	next, err := mergedIterator(old, "")
 	if err != nil {
@@ -119,7 +120,12 @@ func (db *DB) Compact() error {
 			return err
 		}
 	}
-	return syncDir(db.dir)
+	if err = syncDir(db.dir); err != nil {
+		return err
+	}
+	db.metrics.compactions.Add(1)
+	db.metrics.compactionNanos.Add(uint64(time.Since(started)))
+	return nil
 }
 func (db *DB) runCompactor() {
 	defer close(db.done)
