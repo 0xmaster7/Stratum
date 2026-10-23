@@ -26,6 +26,7 @@ type IndexEntry struct {
 	Offset int64
 }
 type sstable struct {
+	data, indexData []byte
 	bloom           *bloomFilter
 	index           []IndexEntry
 	count           int
@@ -71,6 +72,9 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	}
 	defer func() {
 		if err != nil {
+			for _, t := range db.tables {
+				t.close()
+			}
 			if db.wal != nil {
 				db.wal.Close()
 			}
@@ -89,6 +93,9 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 		t := &sstable{id: id, path: path, indexPath: strings.TrimSuffix(path, ".log") + ".index"}
 		// Rebuilding the sparse index also validates existing records before serving reads.
 		if err = t.rebuildIndex(); err != nil {
+			return nil, err
+		}
+		if err = t.mapFiles(); err != nil {
 			return nil, err
 		}
 		db.tables = append(db.tables, t)
@@ -244,6 +251,9 @@ func (db *DB) writeTable(entries []Entry) (*sstable, error) {
 	if err = syncDir(db.dir); err != nil {
 		return nil, err
 	}
+	if err = t.mapFiles(); err != nil {
+		return nil, err
+	}
 	return t, nil
 }
 func syncDir(path string) error {
@@ -261,12 +271,21 @@ func (db *DB) Close() error {
 		return nil
 	}
 	db.closed = true
+	var mapErr error
+	for _, t := range db.tables {
+		if e := t.close(); mapErr == nil {
+			mapErr = e
+		}
+	}
 	err := db.wal.Sync()
 	if e := db.wal.Close(); err == nil {
 		err = e
 	}
 	if e := db.lock.Close(); err == nil {
 		err = e
+	}
+	if err == nil {
+		err = mapErr
 	}
 	return err
 }
@@ -339,17 +358,9 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 	if i < 0 {
 		return Entry{}, false, nil
 	}
-	f, err := os.Open(t.path)
-	if err != nil {
-		return Entry{}, false, err
-	}
-	defer f.Close()
-	if _, err = f.Seek(entries[i].Offset, io.SeekStart); err != nil {
-		return Entry{}, false, err
-	}
-	r := bufio.NewReader(f)
+	offset := entries[i].Offset
 	for {
-		e, _, err := readRecord(r)
+		e, n, err := recordAt(t.data, offset)
 		if err == io.EOF {
 			return Entry{}, false, nil
 		}
@@ -362,5 +373,6 @@ func (t *sstable) get(key string) (Entry, bool, error) {
 		if e.Key > key {
 			return Entry{}, false, nil
 		}
+		offset += n
 	}
 }

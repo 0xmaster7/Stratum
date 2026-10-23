@@ -196,3 +196,19 @@ func TestIndexResident(t *testing.T) {
 	must(t, os.Remove(db.tables[0].indexPath))
 	want(t, db, "key", "value", true)
 }
+
+func TestMappedReads(t *testing.T) {
+	db := openTest(t, Options{})
+	must(t, db.Put("a", "x"))
+	must(t, db.Flush())
+	table := db.tables[0]
+	if len(table.data) == 0 || len(table.indexData) == 0 {
+		t.Fatal("files not mapped")
+	}
+	must(t, os.Rename(table.path, table.path+".moved"))
+	want(t, db, "a", "x", true)
+	must(t, db.Close())
+	if table.data != nil || table.indexData != nil {
+		t.Fatal("mapping not released")
+	}
+}
