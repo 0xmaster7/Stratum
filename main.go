@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -18,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	fmt.Println("GoLSM: PUT key value | GET key | DELETE key | FLUSH | EXIT")
+	fmt.Println("GoLSM: PUT key value | GET key | DELETE key | SCAN start end [limit] | FLUSH | COMPACT | EXIT")
 	in := bufio.NewScanner(os.Stdin)
 	for in.Scan() {
 		line := strings.TrimSpace(in.Text())
@@ -55,6 +57,32 @@ func main() {
 			} else {
 				err = db.Delete(parts[1])
 			}
+		case "SCAN":
+			args := strings.Fields(line)
+			if len(args) < 3 || len(args) > 4 {
+				err = fmt.Errorf("usage: SCAN start end [limit]; use - for unbounded")
+			} else {
+				start, end := args[1], args[2]
+				if start == "-" {
+					start = ""
+				}
+				if end == "-" {
+					end = ""
+				}
+				limit := 0
+				if len(args) == 4 {
+					limit, err = strconv.Atoi(args[3])
+				}
+				if err == nil {
+					var rows []Entry
+					rows, err = db.Scan(start, end, limit)
+					if err == nil {
+						err = json.NewEncoder(os.Stdout).Encode(rows)
+					}
+				}
+			}
+		case "COMPACT":
+			err = db.Compact()
 		case "FLUSH":
 			err = db.Flush()
 		case "EXIT", "QUIT":
