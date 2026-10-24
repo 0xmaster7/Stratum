@@ -1,0 +1,29 @@
+{
+  "commit": "082858f86fc38b79e582eb34b7f39aa2368b3af0",
+  "files": {
+    "api.rs": {
+      "upstream_path": "tools/agentbench/src/api.rs",
+      "sha256": "7d8969a3479ad40fa8f9a8f40478db4834b375327c4995c3f83d7c0e3c26acd6"
+    },
+    "model.rs": {
+      "upstream_path": "tools/agentbench/src/model.rs",
+      "sha256": "a853d8f5dba9c387292d23eab44189bf06394f95d721bd61fd79643a6dd6e283"
+    },
+    "embedded.rs": {
+      "upstream_path": "tools/agentbench/src/embedded.rs",
+      "sha256": "cdd9bd23df3e438e11ca6e46d25ee8d8d3142961d307f031e4852c97320c35e4"
+    },
+    "runner.rs": {
+      "upstream_path": "tools/agentbench/src/runner.rs",
+      "sha256": "197beaf4f2ba51af6e14ea4014f039990dcbd6c084f23e8772a3c59a29368e94"
+    },
+    "metrics.rs": {
+      "upstream_path": "examples/scale/metrics.rs",
+      "sha256": "db0d0106e46fe1817096a9d149b8d3b57db342b095adde2f6a54b6c3f5639601"
+    },
+    "random.rs": {
+      "upstream_path": "examples/support/random.rs",
+      "sha256": "c1f174d4545352c0d5b558d2b0bf22cac2b2640b2735d37f1244b3dd71bc1c62"
+    }
+  }
+}
