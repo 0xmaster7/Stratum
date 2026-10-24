@@ -283,3 +283,30 @@ func TestAutomaticCompactionWaitsForComparableSuffix(t *testing.T) {
 		t.Fatal("included unrelated large tier")
 	}
 }
+
+func TestFlushTriggeredCompactionDoesNotWaitForTimer(t *testing.T) {
+	db := openTest(t, Options{FlushThreshold: 2, CompactionInterval: time.Hour, CompactionThreshold: 2})
+	for i := 0; i < 40; i++ {
+		must(t, db.Put(fmt.Sprintf("k%03d", i), "value"))
+	}
+	must(t, db.Flush())
+	deadline := time.After(5 * time.Second)
+	for {
+		metrics := db.Stats()
+		db.mu.RLock()
+		ready := len(automaticCompactionInputs(db.tables, 2)) > 0
+		db.mu.RUnlock()
+		if metrics.Compactions > 0 && !ready {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("flush-triggered worker left eligible jobs until the timer")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	for i := 0; i < 40; i++ {
+		key := fmt.Sprintf("k%03d", i)
+		want(t, db, key, "value", true)
+	}
+}

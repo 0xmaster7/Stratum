@@ -182,12 +182,15 @@ func (db *DB) runCompactor() {
 			return
 		case <-db.flushWake:
 			err = db.flushPending()
+			if err == nil && db.opts.CompactionInterval > 0 {
+				err = db.compactReady()
+			}
 		case <-ticks:
 			db.mu.RLock()
 			needed := !db.closed && len(db.tables) >= db.opts.CompactionThreshold
 			db.mu.RUnlock()
 			if needed {
-				err = db.compact(nil, true)
+				err = db.compactReady()
 			}
 		}
 		if err != nil && err != ErrClosed {
@@ -223,4 +226,24 @@ func automaticCompactionInputs(tables []*sstable, count int) []*sstable {
 		return nil
 	}
 	return inputs
+}
+
+// Catch up immediately after a flush, including size-tier cascades. Checking
+// only on a timer lets table count/read amplification grow with ingest speed.
+func (db *DB) compactReady() error {
+	for {
+		db.mu.RLock()
+		closed := db.closed
+		ready := len(automaticCompactionInputs(db.tables, db.opts.CompactionThreshold)) > 0
+		db.mu.RUnlock()
+		if closed {
+			return ErrClosed
+		}
+		if !ready {
+			return nil
+		}
+		if err := db.compact(nil, true); err != nil {
+			return err
+		}
+	}
 }
