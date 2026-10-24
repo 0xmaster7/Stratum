@@ -201,7 +201,7 @@ impl GoLSM {
         }
         Ok((
             Self { handle, path },
-            serde_json::json!({"per_write_sync":mode==Mode::Durable,"bridge":"Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included","flush_threshold":1000,"cache_bytes":16777216,"compaction_interval_seconds":30,"compaction_threshold":4,"engine_commit":"b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a"}),
+            serde_json::json!({"per_write_sync":mode==Mode::Durable,"bridge":"Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included","flush_threshold":1000,"cache_bytes":16777216,"compaction_interval_seconds":30,"compaction_threshold":4,"engine_commit":env!("GOLSM_ENGINE_REVISION")}),
         ))
     }
     fn close(&mut self) -> Result<()> {

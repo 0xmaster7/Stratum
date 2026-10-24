@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Produce comparison data/Markdown only from a fully verified campaign."""
 
-import argparse, collections, gzip, hashlib, json, pathlib, statistics
+import argparse, collections, gzip, hashlib, json, pathlib, statistics, subprocess
 
 STAGES = ["remember", "recall-by-id", "recent-for-agent", "update", "mixed-90-10"]
 ENGINES = ["kiban", "golsm", "lmdb"]
@@ -37,13 +37,15 @@ def main():
     assert {
         p.name.removesuffix(".summary.json") for p in root.glob("n*.summary.json")
     } == expected_prefixes
+    # Validate the recorded source revision, including historical campaigns whose
+    # source files differ from the current checkout.
     for name, digest in meta["source_hashes"].items():
-        assert (
-            hashlib.sha256(
-                (pathlib.Path(__file__).parent / name).read_bytes()
-            ).hexdigest()
-            == digest
-        ), name
+        revision = meta.get("source_revision", "ba87afd")
+        source = subprocess.check_output(
+            ["git", "show", f"{revision}:benchmarks/engine-h2h/{name}"],
+            cwd=pathlib.Path(__file__).parent,
+        )
+        assert hashlib.sha256(source).hexdigest() == digest, name
     summaries = []
     groups = collections.defaultdict(list)
     for path in sorted(root.glob("n*.summary.json")):
