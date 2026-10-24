@@ -35,7 +35,7 @@ EXIT
 | `GET key` | Print the latest value, or `key not found` |
 | `DELETE key` | Write a tombstone, including for keys found only on disk |
 | `SCAN start end [limit]` | Sorted interval `[start, end)`; `-` is an unbounded endpoint; omit the limit or use `0` for all results |
-| `FLUSH` | Persist the current memtable as an SSTable and reset the WAL |
+| `FLUSH` | Wait until writes present at invocation have reached synced SSTables |
 | `COMPACT` | Flush pending writes and merge all active SSTables |
 | `STATS` | Inspect counters, memory/disk gauges, and background errors |
 | `EXIT` / `QUIT` | Sync and close the WAL, stop the worker, release mappings and the directory lock |
@@ -56,10 +56,10 @@ go run . -dir ./data \
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `SyncWrites` / `-sync-writes` | `false` | `fsync` the WAL for each acknowledged mutation when enabled |
-| `FlushThreshold` / `-flush-threshold` | `1000` | Flush after this many WAL operations, including updates and deletes |
+| `FlushThreshold` / `-flush-threshold` | `1000` | Rotate the WAL/memtable after this many operations and queue a background flush; apply writer backpressure if a frozen table is still pending |
 | `CacheBytes` / `-cache-bytes` | `16 MiB` | Estimated LRU budget; `-1` disables the cache |
-| `CompactionInterval` / `-compaction-interval` | `30s` | How often the worker checks the SSTable count; a negative duration disables it |
-| `CompactionThreshold` / `-compaction-threshold` | `4` | Minimum active SSTable count that triggers the worker; must be at least `2` |
+| `CompactionInterval` / `-compaction-interval` | `30s` | How often the worker checks for automatic compaction, in addition to flush-triggered checks; a negative duration disables compaction checks, while background flushing remains enabled |
+| `CompactionThreshold` / `-compaction-threshold` | `4` | Number of newest, similarly sized SSTables in an automatic compaction job; must be at least `2` |
 
 Zero-valued numeric/duration fields in `Options` select defaults. For example, `Options{CompactionInterval: -1, CacheBytes: -1}` disables automatic compaction and caching. At the CLI use `-compaction-interval=-1s`.
 
@@ -91,16 +91,18 @@ PUT / DELETE
                          │
                   flush threshold
                          │
-                sort current entries
+           sync/rotate WAL, freeze memtable
                          │
-            write and sync SSTable + index
+          new writes use a new WAL + memtable
                          │
-              atomically replace MANIFEST
+       background sort/write/sync SSTable + index
                          │
-               sync directory, reset WAL
+        publish MANIFEST + flushed WAL generation
+                         │
+              remove obsolete WAL segments
 
 GET
-    memtable → LRU → SSTables newest first
+    active memtable → frozen memtable → LRU → SSTables newest first
                          │
                 key bounds → Bloom filter
                          │
@@ -113,12 +115,12 @@ GET
 - **Tombstones:** deletion is a record flag, not a special user value. `<DELETED>` is a normal value. A tombstone stops older versions from being returned, including after a flush or restart.
 - **Sparse indexes:** one key/offset checkpoint per 10 records, retained in memory. Binary search chooses a checkpoint; a short forward scan resolves the lookup. Key bounds skip unrelated files.
 - **Bloom filters:** approximately 10 bits per key and seven probes. Filters include tombstones. A negative answer skips the table; a possible match still checks the actual records.
-- **mmap:** immutable SSTable `.log` and `.index` files are mapped read-only. Point reads decode records from the mapping without reopening files. The mutable WAL uses ordinary append I/O.
-- **LRU:** caches successful disk reads. Mutations invalidate their keys, and flush/compaction clear the cache. Its budget counts key/value bytes plus an estimated 64 bytes per entry; it is not a bound on total process RSS.
-- **Compaction:** a streaming heap merge resolves duplicate keys newest-first. Because every active SSTable and the flushed memtable participate, obsolete versions and tombstones can be dropped safely. A synced manifest publishes the replacement before old files are removed.
-- **Ranges:** merge sorted memtable entries with the newest disk versions, hide tombstones, and return a consistent ordered view.
+- **mmap:** immutable SSTable `.log` and `.index` files are mapped read-only. Point reads compare mapped key bytes and materialize only the matching value; bounds and checksums are validated on every traversed record. The mutable WAL uses ordinary append I/O.
+- **LRU:** caches successful disk reads. Mutations invalidate their keys; flush and compaction retain unaffected entries. Cache fills are ordered against writes to the same shard to prevent stale refills. Its budget counts key/value bytes plus an estimated 64 bytes per entry; it is not a bound on total process RSS.
+- **Compaction:** a streaming heap merge resolves duplicate keys newest-first. Automatic jobs merge a suffix of `CompactionThreshold` tables only when their largest/smallest size ratio is at most four. Partial jobs retain tombstones. Explicit `Compact` flushes pending writes, merges every active table, and can drop tombstones safely. A synced manifest publishes the replacement before old files are removed.
+- **Ranges:** reuse sorted active/frozen memtable views until mutation, merge them with the newest disk versions, hide tombstones, and skip tables outside the requested interval.
 
-Flushes, compactions, and scans take the exclusive database lock. The compactor is scheduled in a background goroutine, but a running merge pauses other database operations. This version favors simple publication and mapping lifetimes over concurrent compaction.
+Flush and compaction build SSTables outside the global lock; the exclusive lock protects WAL rotation and manifest publication. Maintenance jobs are serialized, keeping their input mappings alive. Readers hold the read lock until they finish, so publication waits for them before old mappings are reclaimed. Scans still hold the exclusive lock for their consistent merge. At most one frozen memtable is queued; if the replacement fills before its flush finishes, writers wait while readers can continue.
 
 ## Files, recovery, and durability
 
@@ -126,7 +128,8 @@ Flushes, compactions, and scans take the exclusive database lock. The compactor 
 data/
 ├── LOCK                  # advisory exclusive process lock
 ├── MANIFEST              # JSON list of the active SSTable IDs
-├── data.log              # write-ahead log
+├── data.log              # active write-ahead log
+├── wal_00000000000000000001.log # frozen/recovered WAL segment, until checkpointed
 ├── sstable_1.log          # sorted records; binary despite the .log suffix
 ├── sstable_1.index        # sparse binary key/offset records
 └── ...
@@ -141,9 +144,9 @@ CRC32C (4) | key bytes | value bytes
 
 Lengths and checksums use little-endian encoding. CRC32C covers the flag, lengths, and payload. Index records use the same envelope, with an eight-byte offset as the value.
 
-On open, the engine validates active SSTables, rebuilds their indexes and Bloom filters once, maps the files, and replays the WAL. **Startup scans all active SSTable records**; metadata is not yet loaded from a persistent Bloom-filter format. A final incomplete WAL record is truncated. Malformed complete records and checksum failures produce errors. Legacy text `PUT key value` and `DELETE key` records remain readable, including in a WAL followed by newer binary records. A legacy directory gains a manifest automatically; future flushes and compactions write binary data. Old deletions that the earlier implementation already lost cannot be reconstructed.
+On open, the engine validates active SSTables, rebuilds their indexes and Bloom filters once, maps the files, and replays uncheckpointed WAL generations in order, followed by the active `data.log`. **Startup scans all active SSTable records**; metadata is not yet loaded from a persistent Bloom-filter format. A final incomplete WAL record is truncated. Malformed complete records and checksum failures produce errors. Legacy text `PUT key value` and `DELETE key` records remain readable, including in a WAL followed by newer binary records. A legacy directory gains a manifest automatically; future flushes and compactions write binary data. Old deletions that the earlier implementation already lost cannot be reconstructed.
 
-A flush syncs its output files, atomically replaces and syncs the manifest, and only then truncates and syncs the WAL. If a process stops between publication and WAL reset, replay can duplicate the same logical versions without changing the result. Files absent from an existing manifest are ignored and cleaned up on open; missing referenced files are an error. Compaction uses the same publication boundary so leftover old files cannot resurrect deleted keys.
+WAL rotation syncs and renames the old WAL, creates and syncs a replacement, then switches writes to a new memtable. Background flush syncs its SSTable and index, then atomically publishes the table and flushed WAL generation in the manifest. Only afterward are checkpointed WAL segments removed. Recovery ignores segments at or below that checkpoint, preventing obsolete replay after a newer table has been published. Existing legacy directories open automatically; directories written by this revision require the WAL-generation-aware engine for recovery. Files absent from an existing manifest are ignored and cleaned up on open; missing referenced files are an error. Compaction uses the same publication boundary so leftover old files cannot resurrect deleted keys.
 
 **Durability mode matters:**
 
@@ -166,9 +169,13 @@ go vet ./...
 go test -race -count=1 ./...
 ```
 
-Tests cover deletes across flush/restart, literal tombstone-like values, binary and legacy records, sparse boundaries, corrupt and incomplete records, exclusive opens, cache eviction/invalidation, concurrent writes, scans, background compaction, unpublished/missing tables, publication failures, WAL replay after a published flush, and a randomized model with repeated reopen/compaction. Both Linux and macOS are exercised. These are functional and race checks; they do not constitute a hardware power-failure certification.
+Tests cover deletes across flush/restart, literal tombstone-like values, binary and legacy records, sparse boundaries, corrupt and incomplete records, exclusive opens, cache eviction/invalidation, concurrent writes, scans, background compaction, unpublished/missing tables, publication failures, WAL replay after a published flush, a randomized model with repeated reopen/compaction, foreground progress during paused flush/compaction builds, bounded-queue backpressure, partial-compaction tombstones, and subprocess exits at WAL-rotation/publication boundaries. Both Linux and macOS are exercised. These are functional and race checks; they do not constitute a hardware power-failure certification.
 
 ## Benchmarks
+
+The current optimization series adds cached scan views, allocation-light mapped lookups, selective cache retention, background flushes, unlocked compaction builds, and size-tier checks. Its before/after results are recorded separately under [`benchmarks/optimizations/`](benchmarks/optimizations/); the Kiban/LMDB comparison below describes the earlier pinned engine.
+
+In the new **fast-mode 1M before/after comparison**, point-read p50 fell **13.31 → 3.78 µs**, verified point-read throughput rose **2.53×**, and latest-10 throughput rose **6.46×** with much smaller scan stalls. Scan p50 became slower, and fast insert/overwrite throughput fell **39%/45%**. These changes improve the large read workload with write and storage tradeoffs; see the [full results](benchmarks/optimizations/2026-10-24/matched-fast/REPORT.md). All 12 trials passed value, reopen, and recorded load checks. No new durable-write or Kiban/LMDB performance numbers are claimed.
 
 ### Matched Kiban and LMDB workload
 
@@ -221,15 +228,15 @@ Reproduce the measurements from the repository root:
 
 The script runs `go vet`, the full race suite, three one-second samples of each point-operation benchmark, three five-iteration samples of flush/compaction/recovery, and three trials of each mixed workload. Raw results and hardware details are in [`benchmarks/`](benchmarks/). Benchmark data uses temporary directories.
 
-The mixed workload runner performs 50,000 operations against 20,000 initially populated keys per trial, with uniform key selection, 16-byte keys, and 100-byte values. Writes update existing keys. It records throughput and p50/p95/p99 read/write latency, then measures compaction and validates every key after reopen. Automatic compaction is disabled during measurements; buffered and mixed write benchmarks include synchronous threshold flushes. The in-process ratios resemble common YCSB read/update mixes, but this is **not a YCSB or memtier run**. There is no network protocol for memtier to target.
+The mixed workload runner performs 50,000 operations against 20,000 initially populated keys per trial, with uniform key selection, 16-byte keys, and 100-byte values. Writes update existing keys. It records throughput and p50/p95/p99 read/write latency, then measures compaction and validates every key after reopen. Automatic compaction is disabled during measurements; the recorded historical buffered and mixed write benchmarks include synchronous threshold flushes. Running the script on the current engine instead includes WAL rotations, background flushing, and writer backpressure. The in-process ratios resemble common YCSB read/update mixes, but this is **not a YCSB or memtier run**. There is no network protocol for memtier to target.
 
 Read data fits in RAM, and mapped-read tests have warm OS page caches. The cached benchmark prewarms the LRU; the SSTable and missing-key benchmarks disable it. The missing-key comparison changes only the Bloom filter. These numbers do not describe cold-device reads, large datasets under memory pressure, or remote-client latency. Microbenchmark `ns/op` is an average; workload latency percentiles come from per-operation wall-clock samples and include instrumentation overhead. No speedup over the original implementation is claimed without a comparable baseline.
 
 ## Remaining limits
 
 - Single process per directory; Linux/macOS only. No network API, transactions, replication, or multi-key atomic writes.
-- Flush/compaction/scan pause concurrent operations. Flush sorting uses memory proportional to the memtable; scans materialize memtable entries and their returned results.
-- The memtable flush threshold counts operations, not bytes. There is no total-memory budget or write backpressure; large records can consume substantial memory before a flush.
-- Compaction merges all active tables; there are no levels, size-based scheduling, compression, or incremental compaction jobs.
+- Scans, WAL rotation, and manifest publication still require the exclusive lock. Flush/compaction construction runs outside it; storage syncs at publication can still cause pauses. Scans retain sorted memtable snapshots and materialize returned results.
+- The memtable threshold counts operations, not bytes. The frozen queue has writer backpressure, but there is no total byte budget; large records can still consume substantial memory.
+- Automatic compaction uses similarly sized suffixes, not a complete leveled layout. Each selected job still rewrites whole input files; there is no compression or fixed byte/time limit per job.
 - Startup validates all SSTables and rewrites sparse indexes. Bloom filters are rebuilt rather than persisted.
 - WAL records have checksums, but there are no sequence-numbered batches, transactions, or fault-injection coverage of every filesystem failure boundary.

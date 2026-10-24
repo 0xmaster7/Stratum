@@ -2,6 +2,8 @@
 
 This harness reproduces the agent-memory engine workload behind [Kiban's head-to-head post](https://github.com/aetosdios27/kiban/blob/082858f86fc38b79e582eb34b7f39aa2368b3af0/validation/ENGINE_H2H.md), adding GoLSM to the same in-process Rust driver. It measures new results on `pancakes`; it does not reuse the post's latency numbers or imply matching hardware.
 
+The recorded three-engine comparison below measures GoLSM `b9a1c07`. Later engine optimizations are evaluated separately in [`../optimizations/`](../optimizations/); those changes do not retroactively update these numbers.
+
 ## Recorded comparison: October 24, 2026
 
 The complete [report](results/2026-10-24/REPORT.md), [interactive comparison](results/2026-10-24/comparison.html), [audit](results/2026-10-24/audit.json), and [raw trial files](results/2026-10-24/) are checked in. All **48 trials**, **8.88 million timed calls**, **2.79 million immediate write read-backs**, and **19.59 million records checked after new-process reopen** passed value validation. The campaign ran from 07:43 to 09:16 UTC on pancakes.
@@ -114,6 +116,8 @@ python3 report.py work/my-fresh-run
 ```
 
 The output directory must be fresh. The default run performs the full 48-trial protocol above and can take over an hour when durable syncs are slow. `--sizes 10000` runs only the smaller matrix. `--small-runs` and `--large-runs` can produce a shorter explicitly different protocol. CPU selectors must identify available CPUs on the target machine; the recorded comparison uses one engine CPU.
+
+The build defaults to the historical GoLSM pin. To measure another committed engine revision, set `GOLSM_REF=<commit>` when invoking `build.sh`; the build and runtime settings record the resolved commit, and optional engine files are selected from that same revision. The alternating GoLSM-only follow-up uses `compare_revisions.py --output work/followup --before-binary <saved-original-binary>` after building the optimized revision. Its default is three repetitions at each size in **fast mode only**, and it retains all trials. It does not rerun Kiban/LMDB or claim new durable performance numbers.
 
 The build script fetches the pinned Kiban source, extracts GoLSM's pinned engine files from Git, compiles the Go archive, and builds Rust using the checked-in lockfile. It does not modify either storage engine. Databases are temporary per-trial directories and are removed only after successful new-process verification, unless `--keep-databases` is supplied. Existing user databases are not opened. Failed/incomplete runs lack `complete.json`; the report generator refuses to publish a completed comparison from them.
 

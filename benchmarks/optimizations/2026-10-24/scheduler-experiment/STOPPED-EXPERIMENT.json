@@ -1,0 +1,9 @@
+{
+  "status": "stopped scheduling experiment; not a completed comparison",
+  "reason": "first 1M optimized trial exposed read amplification from timer-only compaction; replacing timer-only scheduling with flush-triggered tier cascades before a fresh full comparison",
+  "stopped_utc": "2026-10-24T13:40:46.936813+00:00",
+  "completed_trials": 8,
+  "all_completed_trials_retained": true,
+  "optimized_engine": "495f15a",
+  "harness_revision": "135099b"
+}

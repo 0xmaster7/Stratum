@@ -25,6 +25,11 @@ def main():
     parser.add_argument("--output", required=True, type=pathlib.Path)
     parser.add_argument("--before-binary", required=True, type=pathlib.Path)
     parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument(
+        "--baseline-metadata",
+        type=pathlib.Path,
+        default=protocol.ROOT / "results/2026-10-24/metadata.json",
+    )
     args = parser.parse_args()
     assert args.runs > 0
     out = args.output.resolve()
@@ -32,9 +37,9 @@ def main():
     os.sched_setaffinity(0, {0})
     args.engine_cpus = "1"
     args.keep_databases = False
-    baseline = json.loads(
-        (protocol.ROOT / "results/2026-10-24/metadata.json").read_text()
-    )
+    baseline = json.loads(args.baseline_metadata.read_text())
+    verified = json.loads(args.baseline_metadata.with_name("complete.json").read_text())
+    assert verified["zero_value_errors"] and verified["all_reopen_verified"]
     binaries = {
         "baseline": args.before_binary.resolve(),
         "optimized": protocol.ROOT / "target/release/golsm-engine-h2h",

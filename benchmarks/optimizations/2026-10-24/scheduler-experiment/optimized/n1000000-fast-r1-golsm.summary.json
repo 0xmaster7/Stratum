@@ -1,0 +1,325 @@
+{
+  "prefix": "n1000000-fast-r1-golsm",
+  "engine": "golsm",
+  "mode": "fast",
+  "base_records": 1000000,
+  "operations": 100000,
+  "write_operations": 100000,
+  "final_records": 1100000,
+  "trial": 1,
+  "stages": [
+    {
+      "call_ops_s": 6292.3672504097985,
+      "call_seconds": 15.892270114,
+      "errors": 0,
+      "latency": {
+        "count": 100000,
+        "max_ns": 4058684575,
+        "p50_ns": 4864,
+        "p999_ns": 14942208,
+        "p99_ns": 79872
+      },
+      "reads": {
+        "count": 0,
+        "max_ns": 0,
+        "p50_ns": null,
+        "p999_ns": null,
+        "p99_ns": null
+      },
+      "type": "stage",
+      "verified_ops_s": 5882.306396908079,
+      "wall_seconds": 17.000134514,
+      "workload": "remember",
+      "write_readback_seconds": 0.906762094,
+      "writes": {
+        "count": 100000,
+        "max_ns": 4058684575,
+        "p50_ns": 4864,
+        "p999_ns": 14942208,
+        "p99_ns": 79872
+      }
+    },
+    {
+      "call_ops_s": 38871.575046659054,
+      "call_seconds": 2.572573915,
+      "errors": 0,
+      "latency": {
+        "count": 100000,
+        "max_ns": 293591972,
+        "p50_ns": 17408,
+        "p999_ns": 1081344,
+        "p99_ns": 73728
+      },
+      "reads": {
+        "count": 100000,
+        "max_ns": 293591972,
+        "p50_ns": 17408,
+        "p999_ns": 1081344,
+        "p99_ns": 73728
+      },
+      "type": "stage",
+      "verified_ops_s": 34458.3871302842,
+      "wall_seconds": 2.9020510919999998,
+      "workload": "recall-by-id",
+      "write_readback_seconds": 0.0,
+      "writes": {
+        "count": 0,
+        "max_ns": 0,
+        "p50_ns": null,
+        "p999_ns": null,
+        "p99_ns": null
+      }
+    },
+    {
+      "call_ops_s": 1984.8625473283682,
+      "call_seconds": 50.381322442,
+      "errors": 0,
+      "latency": {
+        "count": 100000,
+        "max_ns": 191685190,
+        "p50_ns": 335872,
+        "p999_ns": 11272192,
+        "p99_ns": 4194304
+      },
+      "reads": {
+        "count": 100000,
+        "max_ns": 191685190,
+        "p50_ns": 335872,
+        "p999_ns": 11272192,
+        "p99_ns": 4194304
+      },
+      "type": "stage",
+      "verified_ops_s": 1928.7476289735425,
+      "wall_seconds": 51.847114935,
+      "workload": "recent-for-agent",
+      "write_readback_seconds": 0.0,
+      "writes": {
+        "count": 0,
+        "max_ns": 0,
+        "p50_ns": null,
+        "p999_ns": null,
+        "p99_ns": null
+      }
+    },
+    {
+      "call_ops_s": 11323.699666853086,
+      "call_seconds": 8.831036052,
+      "errors": 0,
+      "latency": {
+        "count": 100000,
+        "max_ns": 550850441,
+        "p50_ns": 4608,
+        "p999_ns": 17825792,
+        "p99_ns": 62464
+      },
+      "reads": {
+        "count": 0,
+        "max_ns": 0,
+        "p50_ns": null,
+        "p999_ns": null,
+        "p99_ns": null
+      },
+      "type": "stage",
+      "verified_ops_s": 10417.396079718425,
+      "wall_seconds": 9.59932782,
+      "workload": "update",
+      "write_readback_seconds": 0.574495716,
+      "writes": {
+        "count": 100000,
+        "max_ns": 550850441,
+        "p50_ns": 4608,
+        "p999_ns": 17825792,
+        "p99_ns": 62464
+      }
+    },
+    {
+      "call_ops_s": 36711.68532775109,
+      "call_seconds": 2.723928338,
+      "errors": 0,
+      "latency": {
+        "count": 100000,
+        "max_ns": 17148302,
+        "p50_ns": 23552,
+        "p999_ns": 311296,
+        "p99_ns": 58368
+      },
+      "reads": {
+        "count": 90000,
+        "max_ns": 17148302,
+        "p50_ns": 24064,
+        "p999_ns": 221184,
+        "p99_ns": 59392
+      },
+      "type": "stage",
+      "verified_ops_s": 34090.25700240103,
+      "wall_seconds": 2.9333894430000003,
+      "workload": "mixed-90-10",
+      "write_readback_seconds": 0.027295993,
+      "writes": {
+        "count": 10000,
+        "max_ns": 16592392,
+        "p50_ns": 6400,
+        "p999_ns": 9699328,
+        "p99_ns": 31744
+      }
+    }
+  ],
+  "resources": {
+    "base_records": 1000000,
+    "boundary_load_samples": [
+      {
+        "epoch": 1792849049.313412,
+        "load": [
+          25.099609375,
+          17.109375,
+          9.4951171875
+        ]
+      },
+      {
+        "epoch": 1792849161.8470278,
+        "load": [
+          9.23388671875,
+          14.39697265625,
+          9.40625
+        ]
+      }
+    ],
+    "cpus_allowed_list": "1",
+    "engine_settings": {
+      "bridge": "Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included",
+      "cache_bytes": 16777216,
+      "compaction_interval_seconds": 30,
+      "compaction_threshold": 4,
+      "engine_commit": "495f15ab4d477f50c875586cab7812efe1b7b454",
+      "flush_threshold": 1000,
+      "per_write_sync": false
+    },
+    "final_engine_state": {
+      "go_heap_alloc": 60281040,
+      "go_num_gc": 915,
+      "gomaxprocs": 1,
+      "metrics": {
+        "BackgroundError": "",
+        "BloomBytes": 1513576,
+        "BloomChecks": 224721846,
+        "BloomSkips": 220647856,
+        "CacheBudget": 16777216,
+        "CacheBytes": 16777040,
+        "CacheHits": 8283,
+        "CompactionNanos": 323154406,
+        "Compactions": 4,
+        "Deletes": 0,
+        "DiskBytes": 433317653,
+        "FlushNanos": 14928656299,
+        "Flushes": 210,
+        "Gets": 2500000,
+        "IndexEntries": 121000,
+        "LogicalReadBytes": 8669110534,
+        "MappedBytes": 433316930,
+        "MemtableEntries": 0,
+        "MemtableHits": 210050,
+        "Misses": 0,
+        "PendingOperations": 0,
+        "Puts": 210000,
+        "RecordsRead": 24624705,
+        "RecoveryNanos": 1091891663,
+        "RecoveryOperations": 0,
+        "SSTables": 199,
+        "ScanNanos": 48542520249,
+        "Scans": 100128,
+        "StartupNanos": 3013376580,
+        "TableChecks": 226552560,
+        "TableReads": 4073990,
+        "WALBytesWritten": 73985918,
+        "WriteError": ""
+      }
+    },
+    "final_population": 1100000,
+    "initial_engine_state": {
+      "go_heap_alloc": 71026440,
+      "go_num_gc": 190,
+      "gomaxprocs": 1,
+      "metrics": {
+        "BackgroundError": "",
+        "BloomBytes": 1250000,
+        "BloomChecks": 1000000,
+        "BloomSkips": 0,
+        "CacheBudget": 16777216,
+        "CacheBytes": 16776966,
+        "CacheHits": 0,
+        "CompactionNanos": 0,
+        "Compactions": 0,
+        "Deletes": 0,
+        "DiskBytes": 358032670,
+        "FlushNanos": 0,
+        "Flushes": 0,
+        "Gets": 1000000,
+        "IndexEntries": 100000,
+        "LogicalReadBytes": 1934530120,
+        "MappedBytes": 358032640,
+        "MemtableEntries": 0,
+        "MemtableHits": 0,
+        "Misses": 0,
+        "PendingOperations": 0,
+        "Puts": 0,
+        "RecordsRead": 5500000,
+        "RecoveryNanos": 1091891663,
+        "RecoveryOperations": 0,
+        "SSTables": 1,
+        "ScanNanos": 1499054,
+        "Scans": 64,
+        "StartupNanos": 3013376580,
+        "TableChecks": 1000000,
+        "TableReads": 1000000,
+        "WALBytesWritten": 0,
+        "WriteError": ""
+      }
+    },
+    "measurement_end_epoch": 1792849161.8470278,
+    "measurement_start_epoch": 1792849049.313412,
+    "peak_rss_bytes": 1275244544,
+    "preload": {
+      "base_records": 1000000,
+      "durability": "relaxed bulk batches; explicit sync at end, all outside measurement",
+      "golsm_bulk_flush_threshold": 1000001,
+      "initial_verification_seconds": 14.995969095,
+      "kiban_batch_records": 10000,
+      "lmdb_helix_bulk_transactions": 1,
+      "load_and_final_sync_seconds": 27.086596628,
+      "reopen_verification_seconds": 14.526384178
+    },
+    "proc_io": "rchar: 783137969\nwchar: 871265931\nsyscr: 191777\nsyscw: 1539424\nread_bytes: 512929792\nwrite_bytes: 873402368\ncancelled_write_bytes: 0\n",
+    "proc_stat": "2826186 (golsm-engine-h2) R 2818777 2817890 2817890 0 -1 4194304 411983 0 89 0 10181 636 0 0 20 0 7 0 67677238 4393766912 135043 18446744073709551615 103012396381728 103012398282976 140724165668816 0 0 0 0 4097 4195520 0 0 0 17 1 0 0 0 0 0 103012399277688 103012399353154 103012826218496 140724165675924 140724165676135 140724165676135 140724165676961 0\n",
+    "rss_bytes": 553168896,
+    "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+    "timed_write_operations": 100000
+  },
+  "disk_after_close": {
+    "apparent_bytes": 433317653,
+    "allocated_bytes": 434102272
+  },
+  "load": {
+    "samples": 558,
+    "max_gap_seconds": 0.34781956672668457,
+    "median_load1": 17.72,
+    "max_load1": 26.08,
+    "gate_pass": false
+  },
+  "reopen_verified": true,
+  "commands": [
+    [
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/optimized-20261024/optimized/n1000000-fast-r1-golsm.config.json"
+    ],
+    [
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/optimized-20261024/optimized/n1000000-fast-r1-golsm.reopen.config.json"
+    ]
+  ]
+}

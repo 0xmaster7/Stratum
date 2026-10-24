@@ -1,0 +1,11 @@
+golsm: remember 100 verified calls
+golsm: recall-by-id 100 verified calls
+golsm: recent-for-agent 100 verified calls
+golsm: update 100 verified calls
+golsm: mixed-90-10 100 verified calls
+golsm: bulk preload 10000/10000
+golsm: remember 10000 verified calls
+golsm: recall-by-id 10000 verified calls
+golsm: recent-for-agent 10000 verified calls
+golsm: update 10000 verified calls
+golsm: mixed-90-10 10000 verified calls

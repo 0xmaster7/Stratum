@@ -1,0 +1,2 @@
+   Compiling golsm-engine-h2h v0.1.0 (/home/azureuser/projects/kvstore/benchmarks/engine-h2h)
+    Finished `release` profile [optimized + debuginfo] target(s) in 12.45s

@@ -1,0 +1,29 @@
+{
+  "started_utc": "2026-10-24T13:43:28.633174+00:00",
+  "mode": "fast",
+  "runs_per_size_and_revision": 3,
+  "sizes": [
+    10000,
+    1000000
+  ],
+  "engine_cpus": "1",
+  "driver_cpu": 0,
+  "engine_revisions": {
+    "baseline": "b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a",
+    "optimized": "5d13cf58dc2f80a9ad579ecf57e67b1ec5ebf3d9"
+  },
+  "binary_sha256": {
+    "baseline": "b1612566592fecb7adef910d051bf76573a640ab1e0a99ec83aad3aac24c5bf5",
+    "optimized": "78b8f96c62ae72a6da54190f52c0e5f894e252fe56ec820dee640c34675a878f"
+  },
+  "harness_revision": "5d13cf58dc2f80a9ad579ecf57e67b1ec5ebf3d9",
+  "kernel": {
+    "system": "Linux",
+    "node": "pancakes",
+    "release": "6.17.0-1022-azure",
+    "version": "#22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "scope": "GoLSM before/after only; original W1-W5 fast workload; no new Kiban/LMDB measurements; generation/oracle/readbacks excluded from call latency but included in verified throughput"
+}
