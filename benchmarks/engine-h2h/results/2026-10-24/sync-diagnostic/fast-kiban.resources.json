@@ -1,0 +1,48 @@
+{
+  "base_records": 10000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1792843291.7541795,
+      "load": [
+        1.36669921875,
+        0.77685546875,
+        0.603515625
+      ]
+    },
+    {
+      "epoch": 1792843292.58004,
+      "load": [
+        1.36669921875,
+        0.77685546875,
+        0.603515625
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "durable_call": "put + sync_data on WAL",
+    "fast_call": "put; default maintenance can still sync",
+    "per_write_sync": false
+  },
+  "final_engine_state": null,
+  "final_population": 11000,
+  "initial_engine_state": null,
+  "measurement_end_epoch": 1792843292.58004,
+  "measurement_start_epoch": 1792843291.7541795,
+  "peak_rss_bytes": 39313408,
+  "preload": {
+    "base_records": 10000,
+    "durability": "relaxed bulk batches; explicit sync at end, all outside measurement",
+    "golsm_bulk_flush_threshold": null,
+    "initial_verification_seconds": 0.191458578,
+    "kiban_batch_records": 10000,
+    "lmdb_helix_bulk_transactions": 1,
+    "load_and_final_sync_seconds": 0.128354826,
+    "reopen_verification_seconds": 0.169558789
+  },
+  "proc_io": "rchar: 7268539\nwchar: 8212604\nsyscr: 1769\nsyscw: 193\nread_bytes: 24576\nwrite_bytes: 8265728\ncancelled_write_bytes: 0\n",
+  "proc_stat": "2552337 (golsm-engine-h2) R 2552331 2548505 2548505 0 -1 4194304 1347 0 0 0 20 9 0 0 20 0 5 0 67107471 2636308480 3869 18446744073709551615 98426560614304 98426562499488 140731271399152 0 0 0 0 4096 4195520 0 0 0 17 1 0 0 0 0 0 98426563483704 98426563559106 98426718654464 140731271404496 140731271404699 140731271404699 140731271405473 0\n",
+  "rss_bytes": 15925248,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 1000
+}

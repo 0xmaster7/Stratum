@@ -1,0 +1,55 @@
+{
+  "started_utc": "2026-10-24T07:43:56.023262+00:00",
+  "engine_sha256": "b1612566592fecb7adef910d051bf76573a640ab1e0a99ec83aad3aac24c5bf5",
+  "go_archive_sha256": "2d0d7bd0398fd99913db68497f996c5a631135d66ba468bc80fcbd5dcbb807fe",
+  "kernel": {
+    "system": "Linux",
+    "node": "pancakes",
+    "release": "6.17.0-1022-azure",
+    "version": "#22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "engine_cpus": "1",
+  "driver_cpu": 0,
+  "engine_versions": {
+    "kiban": "361305a8b63fef309e301e8106c254e60a70ac84",
+    "golsm": "b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a",
+    "lmdb-master3-sys": "0.2.5",
+    "heed3": "0.22.0"
+  },
+  "upstream_harness": "082858f86fc38b79e582eb34b7f39aa2368b3af0",
+  "args": {
+    "output": "work/matched-20261024",
+    "sizes": [
+      10000,
+      1000000
+    ],
+    "small_runs": 5,
+    "large_runs": 3,
+    "engine_cpus": "1",
+    "driver_cpu": 0,
+    "keep_databases": false,
+    "engines": [
+      "kiban",
+      "golsm",
+      "lmdb"
+    ]
+  },
+  "source_hashes": {
+    "src/main.rs": "d5fea056caf66d1ebfb0eba31ab286cd4fcb4155f992519ce948724ee4542080",
+    "src/backend.rs": "3e9c11d089ab3a685796c7269fe18c40842fe56522b54686171865146502c6fe",
+    "src/upstream/runner.rs": "197beaf4f2ba51af6e14ea4014f039990dcbd6c084f23e8772a3c59a29368e94",
+    "src/upstream/model.rs": "a853d8f5dba9c387292d23eab44189bf06394f95d721bd61fd79643a6dd6e283",
+    "src/upstream/api.rs": "7d8969a3479ad40fa8f9a8f40478db4834b375327c4995c3f83d7c0e3c26acd6",
+    "src/upstream/random.rs": "c1f174d4545352c0d5b558d2b0bf22cac2b2640b2735d37f1244b3dd71bc1c62",
+    "src/upstream/embedded.rs": "cdd9bd23df3e438e11ca6e46d25ee8d8d3142961d307f031e4852c97320c35e4",
+    "src/upstream/metrics.rs": "db0d0106e46fe1817096a9d149b8d3b57db342b095adde2f6a54b6c3f5639601"
+  },
+  "go version": "go version go1.25.1 linux/amd64\n",
+  "rustc --version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\n",
+  "cargo --version": "cargo 1.99.1 (5f94df478 2026-08-27)\n",
+  "lscpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  2\nOn-line CPU(s) list:                     0,1\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 7763 64-Core Processor\nCPU family:                              25\nModel:                                   1\nThread(s) per core:                      2\nCore(s) per socket:                      1\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                4890.86\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat umip vaes vpclmulqdq rdpid fsrm\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               32 KiB (1 instance)\nL1i cache:                               32 KiB (1 instance)\nL2 cache:                                512 KiB (1 instance)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0,1\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "free -h": "               total        used        free      shared  buff/cache   available\nMem:           7.7Gi       2.5Gi       722Mi       3.8Mi       4.8Gi       5.2Gi\nSwap:          4.0Gi       2.5Gi       1.5Gi\n",
+  "df -h /home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/root        61G   39G   23G  63% /\n"
+}

@@ -1,0 +1,130 @@
+{
+  "base_records": 1000000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1792830912.040903,
+      "load": [
+        2.791015625,
+        1.9970703125,
+        2.26123046875
+      ]
+    },
+    {
+      "epoch": 1792830973.317887,
+      "load": [
+        1.83740234375,
+        1.87353515625,
+        2.201171875
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "bridge": "Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included",
+    "cache_bytes": 16777216,
+    "compaction_interval_seconds": 30,
+    "compaction_threshold": 4,
+    "engine_commit": "b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a",
+    "flush_threshold": 1000,
+    "per_write_sync": false
+  },
+  "final_engine_state": {
+    "go_heap_alloc": 69587648,
+    "go_num_gc": 972,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1375000,
+      "BloomChecks": 121911114,
+      "BloomSkips": 118661506,
+      "CacheBudget": 16777216,
+      "CacheBytes": 16777040,
+      "CacheHits": 3460,
+      "CompactionNanos": 10898934208,
+      "Compactions": 2,
+      "Deletes": 0,
+      "DiskBytes": 393947026,
+      "FlushNanos": 6901460169,
+      "Flushes": 210,
+      "Gets": 2500000,
+      "IndexEntries": 110000,
+      "LogicalReadBytes": 6639070029,
+      "MappedBytes": 393947010,
+      "MemtableEntries": 0,
+      "MemtableHits": 209832,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 210000,
+      "RecordsRead": 18869852,
+      "RecoveryNanos": 6421,
+      "RecoveryOperations": 0,
+      "SSTables": 1,
+      "ScanNanos": 19561117755,
+      "Scans": 100128,
+      "StartupNanos": 733491120,
+      "TableChecks": 122175399,
+      "TableReads": 3249608,
+      "WALBytesWritten": 73985918,
+      "WriteError": ""
+    }
+  },
+  "final_population": 1100000,
+  "initial_engine_state": {
+    "go_heap_alloc": 67654264,
+    "go_num_gc": 269,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1250000,
+      "BloomChecks": 1000000,
+      "BloomSkips": 0,
+      "CacheBudget": 16777216,
+      "CacheBytes": 16776966,
+      "CacheHits": 0,
+      "CompactionNanos": 0,
+      "Compactions": 0,
+      "Deletes": 0,
+      "DiskBytes": 358032654,
+      "FlushNanos": 0,
+      "Flushes": 0,
+      "Gets": 1000000,
+      "IndexEntries": 100000,
+      "LogicalReadBytes": 1934530120,
+      "MappedBytes": 358032640,
+      "MemtableEntries": 0,
+      "MemtableHits": 0,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 0,
+      "RecordsRead": 5500000,
+      "RecoveryNanos": 6421,
+      "RecoveryOperations": 0,
+      "SSTables": 1,
+      "ScanNanos": 632662,
+      "Scans": 64,
+      "StartupNanos": 733491120,
+      "TableChecks": 1000000,
+      "TableReads": 1000000,
+      "WALBytesWritten": 0,
+      "WriteError": ""
+    }
+  },
+  "measurement_end_epoch": 1792830973.317887,
+  "measurement_start_epoch": 1792830912.040903,
+  "peak_rss_bytes": 1306357760,
+  "preload": {
+    "base_records": 1000000,
+    "durability": "relaxed bulk batches; explicit sync at end, all outside measurement",
+    "golsm_bulk_flush_threshold": 1000001,
+    "initial_verification_seconds": 5.071714956,
+    "kiban_batch_records": 10000,
+    "lmdb_helix_bulk_transactions": 1,
+    "load_and_final_sync_seconds": 11.760477023,
+    "reopen_verification_seconds": 4.946440083
+  },
+  "proc_io": "rchar: 1551536152\nwchar: 1653392594\nsyscr: 379270\nsyscw: 1945409\nread_bytes: 0\nwrite_bytes: 1655488512\ncancelled_write_bytes: 283586560\n",
+  "proc_stat": "2186539 (golsm-engine-h2) R 2068257 2067832 2067832 0 -1 4194304 131788 0 0 0 6320 479 0 0 20 0 6 0 65867305 4279066624 44328 18446744073709551615 103130362294176 103130364179360 140733950232768 0 0 0 0 4103 4195520 0 0 0 17 1 0 0 0 0 0 103130365163576 103130365238978 103130615705600 140733950233521 140733950233720 140733950233720 140733950234529 0\n",
+  "rss_bytes": 181633024,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 100000
+}

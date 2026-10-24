@@ -1,0 +1,9 @@
+{
+  "verified_trials": 48,
+  "timed_calls": 8880000,
+  "write_readbacks": 2790000,
+  "records_checked_after_new_process_reopen": 19590000,
+  "all_value_checks_pass": true,
+  "all_reopen_checks_pass": true,
+  "all_load_gates_pass": false
+}

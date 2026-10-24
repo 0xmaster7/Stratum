@@ -1,0 +1,14 @@
+{
+  "backend": "kiban",
+  "db": "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/databases/n10000-fast-r3-kiban",
+  "endpoint": "",
+  "n": 10000,
+  "operations": 10000,
+  "k": 10,
+  "seed": 20261016,
+  "output": "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/n10000-fast-r3-kiban.reopen.jsonl",
+  "verify_only": true,
+  "mode": "fast",
+  "write_operations": 10000,
+  "warmup": 100
+}

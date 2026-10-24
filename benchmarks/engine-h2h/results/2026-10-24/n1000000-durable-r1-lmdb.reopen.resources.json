@@ -1,0 +1,40 @@
+{
+  "base_records": 1000000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1792830847.0054626,
+      "load": [
+        2.04052734375,
+        1.7294921875,
+        2.201171875
+      ]
+    },
+    {
+      "epoch": 1792830851.7307084,
+      "load": [
+        2.19775390625,
+        1.767578125,
+        2.2109375
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "heed3": "0.22.0",
+    "lmdb_flags": "EnvFlags(0x0)",
+    "lmdb_flags_bits": 0,
+    "map_size_bytes": 10737418240
+  },
+  "final_engine_state": null,
+  "final_population": 1010000,
+  "initial_engine_state": null,
+  "measurement_end_epoch": 1792830851.7307084,
+  "measurement_start_epoch": 1792830847.0054626,
+  "peak_rss_bytes": 863346688,
+  "preload": null,
+  "proc_io": "rchar: 30491\nwchar: 54\nsyscr: 46\nsyscw: 1\nread_bytes: 0\nwrite_bytes: 4096\ncancelled_write_bytes: 0\n",
+  "proc_stat": "2183549 (golsm-engine-h2) R 2068257 2067832 2067832 0 -1 4194304 13311 0 0 0 304 5 0 0 20 0 6 0 65863060 13452926976 208736 18446744073709551615 103708421496736 103708423381920 140730531593904 0 0 0 0 4103 4195520 0 0 0 17 1 0 0 0 0 0 103708424366136 103708424441538 103709221732352 140730531601320 140730531601528 140730531601528 140730531602337 0\n",
+  "rss_bytes": 855048192,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 10000
+}

@@ -1,0 +1,186 @@
+[
+  {
+    "mode": "durable",
+    "engine": "kiban",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "fdatasync": {
+        "calls": 2316,
+        "errors": 0
+      },
+      "fsync": {
+        "calls": 32,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-kiban.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-kiban.config.json"
+    ]
+  },
+  {
+    "mode": "durable",
+    "engine": "golsm",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "fsync": {
+        "calls": 2349,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-golsm.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-golsm.config.json"
+    ]
+  },
+  {
+    "mode": "durable",
+    "engine": "lmdb",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "pwrite64": {
+        "calls": 12103,
+        "errors": 0
+      },
+      "fdatasync": {
+        "calls": 2315,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-lmdb.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/durable-lmdb.config.json"
+    ]
+  },
+  {
+    "mode": "fast",
+    "engine": "kiban",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "fsync": {
+        "calls": 32,
+        "errors": 0
+      },
+      "fdatasync": {
+        "calls": 6,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-kiban.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-kiban.config.json"
+    ]
+  },
+  {
+    "mode": "fast",
+    "engine": "golsm",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "fsync": {
+        "calls": 39,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-golsm.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-golsm.config.json"
+    ]
+  },
+  {
+    "mode": "fast",
+    "engine": "lmdb",
+    "excluded_from_latency_comparison": true,
+    "timed_writes": 2100,
+    "scope": "whole process including warmup, bulk preload, final sync/verification, and close",
+    "syscalls": {
+      "pwrite64": {
+        "calls": 12103,
+        "errors": 0
+      },
+      "fdatasync": {
+        "calls": 5,
+        "errors": 0
+      }
+    },
+    "command": [
+      "strace",
+      "-f",
+      "-qq",
+      "-c",
+      "-e",
+      "trace=fsync,fdatasync,pwrite64",
+      "-o",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-lmdb.syscalls.txt",
+      "taskset",
+      "-c",
+      "1",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/target/release/golsm-engine-h2h",
+      "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/matched-20261024/sync-diagnostic/fast-lmdb.config.json"
+    ]
+  }
+]

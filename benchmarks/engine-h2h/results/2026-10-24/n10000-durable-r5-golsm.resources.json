@@ -1,0 +1,130 @@
+{
+  "base_records": 10000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1792829730.579718,
+      "load": [
+        4.97412109375,
+        3.99267578125,
+        3.02392578125
+      ]
+    },
+    {
+      "epoch": 1792829849.2435126,
+      "load": [
+        3.73876953125,
+        4.138671875,
+        3.21533203125
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "bridge": "Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included",
+    "cache_bytes": 16777216,
+    "compaction_interval_seconds": 30,
+    "compaction_threshold": 4,
+    "engine_commit": "b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a",
+    "flush_threshold": 1000,
+    "per_write_sync": true
+  },
+  "final_engine_state": {
+    "go_heap_alloc": 17735000,
+    "go_num_gc": 211,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 32024,
+      "BloomChecks": 205437,
+      "BloomSkips": 158681,
+      "CacheBudget": 16777216,
+      "CacheBytes": 7945760,
+      "CacheHits": 3210,
+      "CompactionNanos": 632515802,
+      "Compactions": 3,
+      "Deletes": 0,
+      "DiskBytes": 9126449,
+      "FlushNanos": 788486250,
+      "Flushes": 22,
+      "Gets": 70000,
+      "IndexEntries": 2564,
+      "LogicalReadBytes": 90515194,
+      "MappedBytes": 9126416,
+      "MemtableEntries": 0,
+      "MemtableHits": 21388,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 21000,
+      "RecordsRead": 258487,
+      "RecoveryNanos": 6783,
+      "RecoveryOperations": 0,
+      "SSTables": 7,
+      "ScanNanos": 3203094582,
+      "Scans": 10128,
+      "StartupNanos": 15454549,
+      "TableChecks": 206081,
+      "TableReads": 46756,
+      "WALBytesWritten": 7361540,
+      "WriteError": ""
+    }
+  },
+  "final_population": 20000,
+  "initial_engine_state": {
+    "go_heap_alloc": 10888808,
+    "go_num_gc": 23,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 12504,
+      "BloomChecks": 10000,
+      "BloomSkips": 0,
+      "CacheBudget": 16777216,
+      "CacheBytes": 3967320,
+      "CacheHits": 0,
+      "CompactionNanos": 0,
+      "Compactions": 0,
+      "Deletes": 0,
+      "DiskBytes": 3560334,
+      "FlushNanos": 0,
+      "Flushes": 0,
+      "Gets": 10000,
+      "IndexEntries": 1000,
+      "LogicalReadBytes": 19235280,
+      "MappedBytes": 3560320,
+      "MemtableEntries": 0,
+      "MemtableHits": 0,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 0,
+      "RecordsRead": 55000,
+      "RecoveryNanos": 6783,
+      "RecoveryOperations": 0,
+      "SSTables": 1,
+      "ScanNanos": 5589445,
+      "Scans": 64,
+      "StartupNanos": 15454549,
+      "TableChecks": 10000,
+      "TableReads": 10000,
+      "WALBytesWritten": 0,
+      "WriteError": ""
+    }
+  },
+  "measurement_end_epoch": 1792829849.2435126,
+  "measurement_start_epoch": 1792829730.579718,
+  "peak_rss_bytes": 39358464,
+  "preload": {
+    "base_records": 10000,
+    "durability": "relaxed bulk batches; explicit sync at end, all outside measurement",
+    "golsm_bulk_flush_threshold": 10001,
+    "initial_verification_seconds": 0.099836997,
+    "kiban_batch_records": 10000,
+    "lmdb_helix_bulk_transactions": 1,
+    "load_and_final_sync_seconds": 0.189537491,
+    "reopen_verification_seconds": 0.091830351
+  },
+  "proc_io": "rchar: 33825977\nwchar: 41835374\nsyscr: 8482\nsyscw: 48390\nread_bytes: 0\nwrite_bytes: 128872448\ncancelled_write_bytes: 3497984\n",
+  "proc_stat": "2145241 (golsm-engine-h2) R 2068257 2067832 2067832 0 -1 4194304 14379 0 0 0 427 109 0 0 20 0 6 0 65751263 2722402304 9569 18446744073709551615 96741260193696 96741262078880 140737334194864 0 0 0 0 4103 4195520 0 0 0 17 1 0 0 0 0 0 96741263063096 96741263138498 96741416587264 140737334197168 140737334197368 140737334197368 140737334198177 0\n",
+  "rss_bytes": 39358464,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 10000
+}

@@ -170,6 +170,18 @@ Tests cover deletes across flush/restart, literal tombstone-like values, binary 
 
 ## Benchmarks
 
+### Matched Kiban and LMDB workload
+
+The [engine comparison](benchmarks/engine-h2h/README.md) reruns the workload behind Kiban's post against **GoLSM, the post's pinned Kiban version, and raw LMDB**, in-process on pancakes. It uses the same Rust generator, JSON codec, timers, and value oracle, with GoLSM embedded through a Go C archive. Bridge calls and copies are included. The 48-trial campaign covers 10k and 1M base records, durable and fast modes, and passed all value/reopen checks across 8.88 million timed calls.
+
+At 1M, GoLSM's durable insert/overwrite p50 is **1.36–1.38× faster than Kiban** and **1.21–1.35× faster than LMDB**, but verified write throughput is roughly tied with Kiban. LMDB leads point reads and latest-10 scans; GoLSM's 1M point-read p50 is **2.14× slower in durable mode and 7.48× slower in fast mode**. GoLSM's scans need work across both sizes.
+
+Treat these as preliminary: some 10k trials exceeded the load gate, and the 1M groups have three repetitions on a shared VM. Fast-write p50 hides flush/compaction costs, and the engines have different maintenance policies. See the [full tables, tails, throughput, and resource measurements](benchmarks/engine-h2h/results/2026-10-24/REPORT.md), [interactive comparison](benchmarks/engine-h2h/results/2026-10-24/comparison.html), and [reproduction instructions](benchmarks/engine-h2h/README.md#reproduce).
+
+### Native Go microbenchmarks
+
+These earlier raw-string tests use a different workload from the JSON agent-memory comparison above; their numbers should not be compared directly.
+
 Measured on **pancakes**, Linux/amd64, Go 1.25.1, with 2 vCPUs from an AMD EPYC 7763 and approximately 8 GiB RAM. The run began **October 23, 2026 at 20:36 UTC** (October 24 in India). Engine revision: `03b42cf`. Values below are medians of three samples, not best-case results.
 
 | Microbenchmark | Median time/op | Bytes/op | Allocs/op |
