@@ -26,8 +26,14 @@ func (h mergeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 func (h *mergeHeap) Push(x any)   { *h = append(*h, x.(*tableCursor)) }
 func (h *mergeHeap) Pop() any     { old := *h; x := old[len(old)-1]; *h = old[:len(old)-1]; return x }
 func mergedIterator(tables []*sstable, start string) (func() (Entry, bool, error), error) {
+	return mergedRangeIterator(tables, start, "")
+}
+func mergedRangeIterator(tables []*sstable, start, end string) (func() (Entry, bool, error), error) {
 	h := &mergeHeap{}
 	for _, t := range tables {
+		if t.count == 0 || t.maxKey < start || (end != "" && t.minKey >= end) {
+			continue
+		}
 		offset := int64(0)
 		if start != "" {
 			i := indexBefore(t.index, start)
@@ -36,13 +42,19 @@ func mergedIterator(tables []*sstable, start string) (func() (Entry, bool, error
 			}
 		}
 		e, n, err := recordAt(t.data, offset)
+		for err == nil && e.Key < start {
+			offset += n
+			e, n, err = recordAt(t.data, offset)
+		}
 		if err == io.EOF {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
-		heap.Push(h, &tableCursor{table: t, offset: offset + n, entry: e})
+		if end == "" || e.Key < end {
+			heap.Push(h, &tableCursor{table: t, offset: offset + n, entry: e})
+		}
 	}
 	var previous string
 	seen := false

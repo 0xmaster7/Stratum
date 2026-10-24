@@ -248,3 +248,29 @@ func BenchmarkRecovery20000(b *testing.B) {
 		}
 	}
 }
+
+// Repeated small ranges over a mixed memory/disk layout, as in latest-for-agent.
+func BenchmarkScanLatest10(b *testing.B) {
+	for _, pending := range []int{0, 900} {
+		b.Run(fmt.Sprintf("Pending%d", pending), func(b *testing.B) {
+			db := benchmarkDB(b, Options{FlushThreshold: 1 << 30}, true)
+			if err := db.Flush(); err != nil {
+				b.Fatal(err)
+			}
+			keys := benchmarkKeys(benchKeys)
+			for i := 0; i < pending; i++ {
+				if err := db.Put(keys[i], "updated"); err != nil {
+					b.Fatal(err)
+				}
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				rows, err := db.Scan(keys[5000], keys[5020], 10)
+				if err != nil || len(rows) != 10 {
+					b.Fatal(len(rows), err)
+				}
+			}
+		})
+	}
+}

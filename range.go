@@ -23,10 +23,9 @@ func (db *DB) Scan(start, end string, limit int) ([]Entry, error) {
 	}
 	started := time.Now()
 	defer func() { db.metrics.scans.Add(1); db.metrics.scanNanos.Add(uint64(time.Since(started))) }()
-	mem := db.mem.entries()
-	sort.Slice(mem, func(i, j int) bool { return mem[i].Key < mem[j].Key })
+	mem := db.mem.sortedEntries()
 	i := sort.Search(len(mem), func(i int) bool { return mem[i].Key >= start })
-	next, err := mergedIterator(db.tables, start)
+	next, err := mergedRangeIterator(db.tables, start, end)
 	if err != nil {
 		return nil, err
 	}

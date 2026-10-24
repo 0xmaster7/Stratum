@@ -231,6 +231,7 @@ func (db *DB) mutate(e Entry) error {
 	db.walMu.Unlock()
 	if err == nil {
 		shard.put(e)
+		db.mem.revision.Add(1)
 		db.cache.remove(e.Key)
 		db.operations.Add(1)
 	}

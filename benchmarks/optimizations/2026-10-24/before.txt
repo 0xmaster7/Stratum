@@ -1,0 +1,15 @@
+goos: linux
+goarch: amd64
+pkg: kvstore
+cpu: AMD EPYC 7763 64-Core Processor
+BenchmarkGet/SSTable-2    	  375493	      2805 ns/op	     703 B/op	      10 allocs/op
+BenchmarkGet/SSTable-2    	  363512	      3266 ns/op	     703 B/op	      10 allocs/op
+BenchmarkGet/SSTable-2    	  208944	      2632 ns/op	     703 B/op	      10 allocs/op
+BenchmarkScanLatest10/Pending0-2         	   34893	     54382 ns/op	    2865 B/op	      33 allocs/op
+BenchmarkScanLatest10/Pending0-2         	   17520	     49433 ns/op	    2865 B/op	      33 allocs/op
+BenchmarkScanLatest10/Pending0-2         	    9530	     84879 ns/op	    2865 B/op	      33 allocs/op
+BenchmarkScanLatest10/Pending900-2       	     669	   1471071 ns/op	  113401 B/op	      46 allocs/op
+BenchmarkScanLatest10/Pending900-2       	     217	   2385274 ns/op	  113401 B/op	      46 allocs/op
+BenchmarkScanLatest10/Pending900-2       	     412	   2175406 ns/op	  113401 B/op	      46 allocs/op
+PASS
+ok  	kvstore	24.268s

@@ -1,6 +1,10 @@
 package main
 
-import "sync"
+import (
+	"sort"
+	"sync"
+	"sync/atomic"
+)
 
 const shardCount = 256
 
@@ -9,7 +13,12 @@ type memShard struct {
 	buckets [][]Entry
 	count   int
 }
-type memTable struct{ shards [shardCount]memShard }
+type memTable struct {
+	shards         [shardCount]memShard
+	revision       atomic.Uint64
+	sortedRevision uint64
+	sorted         []Entry // Accessed only while holding the database's exclusive lock.
+}
 
 func hash(key string) uint64 {
 	h := uint64(14695981039346656037)
@@ -70,4 +79,16 @@ func (m *memTable) entries() []Entry {
 		}
 	}
 	return entries
+}
+
+// sortedEntries reuses an immutable view until the next mutation. The caller
+// holds db.mu exclusively, excluding mutations and other snapshot builders.
+func (m *memTable) sortedEntries() []Entry {
+	version := m.revision.Load()
+	if m.sorted == nil || version != m.sortedRevision {
+		m.sorted = m.entries()
+		sort.Slice(m.sorted, func(i, j int) bool { return m.sorted[i].Key < m.sorted[j].Key })
+		m.sortedRevision = version
+	}
+	return m.sorted
 }
