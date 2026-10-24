@@ -211,7 +211,7 @@ func TestCompactionBuildAllowsForegroundOperations(t *testing.T) {
 	must(t, db.Put("key", "new"))
 	must(t, db.Flush())
 	started, release, finished := make(chan struct{}), make(chan struct{}), make(chan error, 1)
-	go func() { finished <- db.compact(func() { close(started); <-release }) }()
+	go func() { finished <- db.compact(func() { close(started); <-release }, false) }()
 	<-started
 	foreground := make(chan error, 1)
 	go func() {
@@ -238,4 +238,48 @@ func TestCompactionBuildAllowsForegroundOperations(t *testing.T) {
 	defer reopened.Close()
 	want(t, reopened, "during", "safe", true)
 	want(t, reopened, "key", "new", true)
+}
+
+func TestAutomaticCompactionRetainsPartialTombstones(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1, CompactionThreshold: 2, FlushThreshold: 10000})
+	// A large old base must not be rewritten with each pair of small tables.
+	for i := 0; i < 1000; i++ {
+		must(t, db.Put(fmt.Sprintf("base%04d", i), "old"))
+	}
+	must(t, db.Flush())
+	base := db.tables[0]
+	must(t, db.Delete("base0000"))
+	must(t, db.Put("fresh", "one"))
+	must(t, db.Flush())
+	must(t, db.Put("fresh", "two"))
+	must(t, db.Delete("base0001"))
+	must(t, db.Flush())
+	must(t, db.compact(nil, true))
+	if len(db.tables) != 2 || db.tables[0] != base {
+		t.Fatal("automatic job rewrote the base")
+	}
+	want(t, db, "base0000", "", false)
+	want(t, db, "base0001", "", false)
+	want(t, db, "fresh", "two", true)
+	must(t, db.Close())
+	again, err := Open(db.dir, Options{CompactionInterval: -1})
+	must(t, err)
+	defer again.Close()
+	want(t, again, "base0000", "", false)
+	want(t, again, "base0001", "", false)
+	want(t, again, "fresh", "two", true)
+	must(t, again.Compact())
+	if len(again.tables) != 1 || again.tables[0].count != 999 {
+		t.Fatalf("full compaction: %d records", again.tables[0].count)
+	}
+}
+
+func TestAutomaticCompactionWaitsForComparableSuffix(t *testing.T) {
+	tables := []*sstable{{data: make([]byte, 100000)}, {data: make([]byte, 100)}, {data: make([]byte, 100)}}
+	if got := automaticCompactionInputs(tables, 2); len(got) != 2 || got[0] != tables[1] {
+		t.Fatal("did not choose small suffix")
+	}
+	if got := automaticCompactionInputs(tables, 3); len(got) != 0 {
+		t.Fatal("included unrelated large tier")
+	}
 }

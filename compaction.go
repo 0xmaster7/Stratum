@@ -81,12 +81,14 @@ func mergedRangeIterator(tables []*sstable, start, end string) (func() (Entry, b
 		return Entry{}, false, nil
 	}, nil
 }
-func (db *DB) Compact() error { return db.compact(nil) }
+func (db *DB) Compact() error { return db.compact(nil, false) }
 
 // afterSnapshot allows deterministic scheduling in concurrency tests.
-func (db *DB) compact(afterSnapshot func()) error {
-	if err := db.Flush(); err != nil {
-		return err
+func (db *DB) compact(afterSnapshot func(), automatic bool) error {
+	if !automatic {
+		if err := db.Flush(); err != nil {
+			return err
+		}
 	}
 	db.maintenanceMu.Lock()
 	defer db.maintenanceMu.Unlock()
@@ -105,7 +107,16 @@ func (db *DB) compact(afterSnapshot func()) error {
 		return nil
 	}
 	started := time.Now()
-	old := append([]*sstable(nil), db.tables...)
+	inputs := db.tables
+	if automatic {
+		inputs = automaticCompactionInputs(db.tables, db.opts.CompactionThreshold)
+		if len(inputs) == 0 {
+			db.mu.Unlock()
+			return nil
+		}
+	}
+	retained := append([]*sstable(nil), db.tables[:len(db.tables)-len(inputs)]...)
+	old := append([]*sstable(nil), inputs...)
 	db.mu.Unlock()
 	// Maintenance serialization pins the input mappings. Ordinary readers and
 	// writers may use the existing view throughout construction.
@@ -122,7 +133,7 @@ func (db *DB) compact(afterSnapshot func()) error {
 			if err != nil || !ok {
 				return e, ok, err
 			}
-			if !e.Deleted {
+			if !e.Deleted || len(retained) > 0 {
 				return e, true, nil
 			}
 		}
@@ -132,7 +143,7 @@ func (db *DB) compact(afterSnapshot func()) error {
 		return err
 	}
 	db.mu.Lock()
-	if err = db.install([]*sstable{t}); err != nil {
+	if err = db.install(append(retained, t)); err != nil {
 		db.mu.Unlock()
 		t.close()
 		return err
@@ -176,7 +187,7 @@ func (db *DB) runCompactor() {
 			needed := !db.closed && len(db.tables) >= db.opts.CompactionThreshold
 			db.mu.RUnlock()
 			if needed {
-				err = db.Compact()
+				err = db.compact(nil, true)
 			}
 		}
 		if err != nil && err != ErrClosed {
@@ -185,4 +196,31 @@ func (db *DB) runCompactor() {
 			db.mu.Unlock()
 		}
 	}
+}
+
+// Merge only a suffix of similarly sized tables. Keeping every newer table in
+// the job preserves version precedence without giving old records a newer ID.
+// A large base table is left alone until the newer suffix reaches its size tier.
+func automaticCompactionInputs(tables []*sstable, count int) []*sstable {
+	if len(tables) < count {
+		return nil
+	}
+	inputs := tables[len(tables)-count:]
+	var smallest, largest int64
+	for i, t := range inputs {
+		size := int64(len(t.data) + len(t.indexData))
+		if size == 0 {
+			size = 1
+		}
+		if i == 0 || size < smallest {
+			smallest = size
+		}
+		if size > largest {
+			largest = size
+		}
+	}
+	if largest > 4*smallest {
+		return nil
+	}
+	return inputs
 }
