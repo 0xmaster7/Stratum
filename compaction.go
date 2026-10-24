@@ -121,7 +121,6 @@ func (db *DB) Compact() error {
 		t.close()
 		return err
 	}
-	db.cache.clear()
 	var cleanupErr error
 	for _, oldTable := range old {
 		cleanupErr = errors.Join(cleanupErr, oldTable.close())

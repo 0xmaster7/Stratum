@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestCacheBudget(t *testing.T) {
 	c := newCache(140)
@@ -37,4 +40,49 @@ func TestCacheInvalidation(t *testing.T) {
 	must(t, db.Delete("a"))
 	must(t, db.Flush())
 	want(t, db, "a", "", false)
+}
+
+func TestCacheRetainedAcrossMaintenance(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1})
+	must(t, db.Put("hot", "original"))
+	must(t, db.Flush())
+	want(t, db, "hot", "original", true)
+	must(t, db.Put("other", "value"))
+	must(t, db.Flush())
+	if value, ok := db.cache.get("hot"); !ok || value != "original" {
+		t.Fatal("flush discarded valid cache entry")
+	}
+	must(t, db.Compact())
+	if value, ok := db.cache.get("hot"); !ok || value != "original" {
+		t.Fatal("compaction discarded valid cache entry")
+	}
+	must(t, db.Put("hot", "updated"))
+	must(t, db.Flush())
+	want(t, db, "hot", "updated", true)
+	must(t, db.Delete("hot"))
+	must(t, db.Compact())
+	want(t, db, "hot", "", false)
+}
+
+func TestCacheConcurrentMutationAndFlush(t *testing.T) {
+	db := openTest(t, Options{FlushThreshold: 10000, CompactionInterval: -1})
+	must(t, db.Put("key", "initial"))
+	must(t, db.Flush())
+	for i := 0; i < 30; i++ {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for j := 0; j < 50; j++ {
+				if _, _, err := db.Get("key"); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+		value := fmt.Sprint(i)
+		must(t, db.Put("key", value))
+		must(t, db.Flush())
+		<-done
+		want(t, db, "key", value, true)
+	}
 }

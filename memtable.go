@@ -61,6 +61,11 @@ func (m *memTable) get(key string) (Entry, bool) {
 	s := m.shard(key)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.get(key)
+}
+
+// get requires the shard read or write lock.
+func (s *memShard) get(key string) (Entry, bool) {
 	b := int((hash(key) / shardCount) % uint64(len(s.buckets)))
 	for _, e := range s.buckets[b] {
 		if e.Key == key {

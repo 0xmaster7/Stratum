@@ -259,7 +259,12 @@ func (db *DB) Get(key string) (value string, exists bool, readErr error) {
 		return "", false, ErrClosed
 	}
 	db.metrics.gets.Add(1)
-	if e, ok := db.mem.get(key); ok {
+	// Keep cache fill ordered against mutations of this key. Without this lock,
+	// an older disk read could refill the cache after a writer invalidates it.
+	shard := db.mem.shard(key)
+	shard.mu.RLock()
+	defer shard.mu.RUnlock()
+	if e, ok := shard.get(key); ok {
 		db.metrics.memHits.Add(1)
 		return e.Value, !e.Deleted, nil
 	}
@@ -331,7 +336,6 @@ func (db *DB) flushLocked() error {
 		return err
 	}
 	db.mem = newMemTable()
-	db.cache.clear()
 	db.operations.Store(0)
 	db.metrics.flushes.Add(1)
 	db.metrics.flushNanos.Add(uint64(time.Since(started)))
