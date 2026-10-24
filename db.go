@@ -50,6 +50,9 @@ type DB struct {
 	walErr                  error
 	cache                   *readCache
 	mu                      sync.RWMutex
+	maintenanceMu           sync.Mutex
+	closeDone               chan struct{}
+	closeErr                error
 	dir                     string
 	opts                    Options
 	mem                     *memTable
@@ -87,7 +90,7 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err = os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes), stop: make(chan struct{}), done: make(chan struct{})}
+	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes), stop: make(chan struct{}), done: make(chan struct{}), closeDone: make(chan struct{})}
 	db.lock, err = os.OpenFile(filepath.Join(dir, "LOCK"), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
@@ -298,6 +301,8 @@ func (db *DB) Get(key string) (value string, exists bool, readErr error) {
 	return "", false, nil
 }
 func (db *DB) Flush() error {
+	db.maintenanceMu.Lock()
+	defer db.maintenanceMu.Unlock()
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	if db.closed {
@@ -414,27 +419,25 @@ func (db *DB) Close() error {
 	db.mu.Lock()
 	if db.closed {
 		db.mu.Unlock()
-		return nil
+		<-db.closeDone
+		return db.closeErr
 	}
 	db.closed = true
 	close(db.stop)
+	db.mu.Unlock()
+	// Let an in-flight worker finish before releasing mappings or the directory.
+	<-db.done
+	db.maintenanceMu.Lock()
+	defer db.maintenanceMu.Unlock()
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	var err error
 	for _, t := range db.tables {
-		if e := t.close(); err == nil {
-			err = e
-		}
+		err = errors.Join(err, t.close())
 	}
-	if e := db.wal.Sync(); err == nil {
-		err = e
-	}
-	if e := db.wal.Close(); err == nil {
-		err = e
-	}
-	if e := db.lock.Close(); err == nil {
-		err = e
-	}
-	db.mu.Unlock()
-	<-db.done
+	err = errors.Join(err, db.wal.Sync(), db.wal.Close(), db.lock.Close())
+	db.closeErr = err
+	close(db.closeDone)
 	return err
 }
 func (t *sstable) rebuildIndex() error {

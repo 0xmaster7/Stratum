@@ -203,3 +203,39 @@ func TestConcurrentCompactionAndStats(t *testing.T) {
 		}
 	}
 }
+
+func TestCompactionBuildAllowsForegroundOperations(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1, FlushThreshold: 10000})
+	must(t, db.Put("key", "old"))
+	must(t, db.Flush())
+	must(t, db.Put("key", "new"))
+	must(t, db.Flush())
+	started, release, finished := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() { finished <- db.compact(func() { close(started); <-release }) }()
+	<-started
+	foreground := make(chan error, 1)
+	go func() {
+		if value, ok, err := db.Get("key"); err != nil || !ok || value != "new" {
+			foreground <- fmt.Errorf("read: %q %v %v", value, ok, err)
+			return
+		}
+		foreground <- db.Put("during", "safe")
+	}()
+	select {
+	case err := <-foreground:
+		must(t, err)
+	case <-time.After(3 * time.Second):
+		close(release)
+		t.Fatal("compaction build blocked foreground")
+	}
+	close(release)
+	must(t, <-finished)
+	want(t, db, "during", "safe", true)
+	must(t, db.Flush())
+	must(t, db.Close())
+	reopened, err := Open(db.dir, Options{})
+	must(t, err)
+	defer reopened.Close()
+	want(t, reopened, "during", "safe", true)
+	want(t, reopened, "key", "new", true)
+}

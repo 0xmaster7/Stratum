@@ -81,23 +81,38 @@ func mergedRangeIterator(tables []*sstable, start, end string) (func() (Entry, b
 		return Entry{}, false, nil
 	}, nil
 }
-func (db *DB) Compact() error {
+func (db *DB) Compact() error { return db.compact(nil) }
+
+// afterSnapshot allows deterministic scheduling in concurrency tests.
+func (db *DB) compact(afterSnapshot func()) error {
+	db.maintenanceMu.Lock()
+	defer db.maintenanceMu.Unlock()
 	db.mu.Lock()
-	defer db.mu.Unlock()
 	if db.closed {
+		db.mu.Unlock()
 		return ErrClosed
 	}
 	if db.writeErr != nil {
-		return db.writeErr
+		err := db.writeErr
+		db.mu.Unlock()
+		return err
 	}
 	if err := db.flushLocked(); err != nil {
+		db.mu.Unlock()
 		return err
 	}
 	if len(db.tables) < 2 {
+		db.mu.Unlock()
 		return nil
 	}
 	started := time.Now()
 	old := append([]*sstable(nil), db.tables...)
+	db.mu.Unlock()
+	// Maintenance serialization pins the input mappings. Ordinary readers and
+	// writers may use the existing view throughout construction.
+	if afterSnapshot != nil {
+		afterSnapshot()
+	}
 	next, err := mergedIterator(old, "")
 	if err != nil {
 		return err
@@ -117,10 +132,14 @@ func (db *DB) Compact() error {
 	if err != nil {
 		return err
 	}
+	db.mu.Lock()
 	if err = db.install([]*sstable{t}); err != nil {
+		db.mu.Unlock()
 		t.close()
 		return err
 	}
+	// Acquiring the exclusive lock has drained every reader of the old view.
+	db.mu.Unlock()
 	var cleanupErr error
 	for _, oldTable := range old {
 		cleanupErr = errors.Join(cleanupErr, oldTable.close())
