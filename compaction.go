@@ -85,6 +85,9 @@ func (db *DB) Compact() error { return db.compact(nil) }
 
 // afterSnapshot allows deterministic scheduling in concurrency tests.
 func (db *DB) compact(afterSnapshot func()) error {
+	if err := db.Flush(); err != nil {
+		return err
+	}
 	db.maintenanceMu.Lock()
 	defer db.maintenanceMu.Unlock()
 	db.mu.Lock()
@@ -94,10 +97,6 @@ func (db *DB) compact(afterSnapshot func()) error {
 	}
 	if db.writeErr != nil {
 		err := db.writeErr
-		db.mu.Unlock()
-		return err
-	}
-	if err := db.flushLocked(); err != nil {
 		db.mu.Unlock()
 		return err
 	}
@@ -159,27 +158,31 @@ func (db *DB) compact(afterSnapshot func()) error {
 }
 func (db *DB) runCompactor() {
 	defer close(db.done)
-	if db.opts.CompactionInterval < 0 {
-		<-db.stop
-		return
+	var ticks <-chan time.Time
+	if db.opts.CompactionInterval > 0 {
+		ticker := time.NewTicker(db.opts.CompactionInterval)
+		defer ticker.Stop()
+		ticks = ticker.C
 	}
-	ticker := time.NewTicker(db.opts.CompactionInterval)
-	defer ticker.Stop()
 	for {
+		var err error
 		select {
 		case <-db.stop:
 			return
-		case <-ticker.C:
+		case <-db.flushWake:
+			err = db.flushPending()
+		case <-ticks:
 			db.mu.RLock()
 			needed := !db.closed && len(db.tables) >= db.opts.CompactionThreshold
 			db.mu.RUnlock()
 			if needed {
-				if err := db.Compact(); err != nil && err != ErrClosed {
-					db.mu.Lock()
-					db.backgroundErr = err
-					db.mu.Unlock()
-				}
+				err = db.Compact()
 			}
+		}
+		if err != nil && err != ErrClosed {
+			db.mu.Lock()
+			db.backgroundErr = err
+			db.mu.Unlock()
 		}
 	}
 }

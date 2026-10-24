@@ -24,7 +24,14 @@ func (db *DB) Scan(start, end string, limit int) ([]Entry, error) {
 	started := time.Now()
 	defer func() { db.metrics.scans.Add(1); db.metrics.scanNanos.Add(uint64(time.Since(started))) }()
 	mem := db.mem.sortedEntries()
-	i := sort.Search(len(mem), func(i int) bool { return mem[i].Key >= start })
+	var frozen []Entry
+	if db.frozen != nil {
+		frozen = db.frozen.mem.sortedEntries()
+	}
+	memory := memoryIterator{newer: mem, older: frozen}
+	memory.i = sort.Search(len(mem), func(i int) bool { return mem[i].Key >= start })
+	memory.j = sort.Search(len(frozen), func(i int) bool { return frozen[i].Key >= start })
+	pending, hasMemory := memory.next()
 	next, err := mergedRangeIterator(db.tables, start, end)
 	if err != nil {
 		return nil, err
@@ -34,12 +41,12 @@ func (db *DB) Scan(start, end string, limit int) ([]Entry, error) {
 		return nil, err
 	}
 	result := make([]Entry, 0)
-	for i < len(mem) || hasDisk {
+	for hasMemory || hasDisk {
 		var e Entry
 		advanceDisk := false
-		if i < len(mem) && (!hasDisk || mem[i].Key <= disk.Key) {
-			e = mem[i]
-			i++
+		if hasMemory && (!hasDisk || pending.Key <= disk.Key) {
+			e = pending
+			pending, hasMemory = memory.next()
 			advanceDisk = hasDisk && e.Key == disk.Key
 		} else {
 			e = disk
@@ -62,4 +69,27 @@ func (db *DB) Scan(start, end string, limit int) ([]Entry, error) {
 		}
 	}
 	return result, nil
+}
+
+// Merge the active and immutable views without copying their entries per scan.
+type memoryIterator struct {
+	newer, older []Entry
+	i, j         int
+}
+
+func (m *memoryIterator) next() (Entry, bool) {
+	if m.i < len(m.newer) && (m.j == len(m.older) || m.newer[m.i].Key <= m.older[m.j].Key) {
+		e := m.newer[m.i]
+		m.i++
+		if m.j < len(m.older) && m.older[m.j].Key == e.Key {
+			m.j++
+		}
+		return e, true
+	}
+	if m.j < len(m.older) {
+		e := m.older[m.j]
+		m.j++
+		return e, true
+	}
+	return Entry{}, false
 }

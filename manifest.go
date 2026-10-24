@@ -9,35 +9,36 @@ import (
 )
 
 type manifest struct {
-	Tables []int `json:"tables"`
+	Tables     []int  `json:"tables"`
+	FlushedWAL uint64 `json:"flushed_wal,omitempty"`
 }
 
-func readManifest(dir string) (map[int]bool, bool, error) {
+func readManifest(dir string) (map[int]bool, bool, uint64, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "MANIFEST"))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, false, nil
+		return nil, false, 0, nil
 	}
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	var m manifest
 	if err = json.Unmarshal(b, &m); err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	ids := make(map[int]bool)
 	for _, id := range m.Tables {
 		if id < 1 || ids[id] {
-			return nil, false, errors.New("invalid manifest table ID")
+			return nil, false, 0, errors.New("invalid manifest table ID")
 		}
 		ids[id] = true
 	}
-	return ids, true, nil
+	return ids, true, m.FlushedWAL, nil
 }
 
 // The manifest is the commit point for a flush or compaction. Readers only use
 // files named by it; files left by interrupted publication are never resurrected.
 func (db *DB) publish(tables []*sstable) error {
-	m := manifest{Tables: make([]int, 0, len(tables))}
+	m := manifest{Tables: make([]int, 0, len(tables)), FlushedWAL: db.flushedWAL}
 	for _, t := range tables {
 		m.Tables = append(m.Tables, t.id)
 	}

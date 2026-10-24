@@ -44,24 +44,28 @@ type Options struct {
 	SyncWrites          bool
 }
 type DB struct {
-	metrics                 counters
-	stop, done              chan struct{}
-	writeErr, backgroundErr error
-	walErr                  error
-	cache                   *readCache
-	mu                      sync.RWMutex
-	maintenanceMu           sync.Mutex
-	closeDone               chan struct{}
-	closeErr                error
-	dir                     string
-	opts                    Options
-	mem                     *memTable
-	tables                  []*sstable
-	nextID                  int
-	operations              atomic.Int64
-	walMu                   sync.Mutex
-	wal, lock               *os.File
-	closed                  bool
+	frozen                    *frozenMemtable
+	walGeneration, flushedWAL uint64
+	flushWake                 chan struct{}
+	flushCond                 *sync.Cond
+	metrics                   counters
+	stop, done                chan struct{}
+	writeErr, backgroundErr   error
+	walErr                    error
+	cache                     *readCache
+	mu                        sync.RWMutex
+	maintenanceMu             sync.Mutex
+	closeDone                 chan struct{}
+	closeErr                  error
+	dir                       string
+	opts                      Options
+	mem                       *memTable
+	tables                    []*sstable
+	nextID                    int
+	operations                atomic.Int64
+	walMu                     sync.Mutex
+	wal, lock                 *os.File
+	closed                    bool
 }
 
 func Open(dir string, opts Options) (_ *DB, err error) {
@@ -90,7 +94,8 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err = os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
 	}
-	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes), stop: make(chan struct{}), done: make(chan struct{}), closeDone: make(chan struct{})}
+	db := &DB{dir: dir, opts: opts, mem: newMemTable(), nextID: 1, cache: newCache(opts.CacheBytes), stop: make(chan struct{}), done: make(chan struct{}), closeDone: make(chan struct{}), flushWake: make(chan struct{}, 1)}
+	db.flushCond = sync.NewCond(&db.mu)
 	db.lock, err = os.OpenFile(filepath.Join(dir, "LOCK"), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
@@ -114,7 +119,8 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 	if err != nil {
 		return nil, err
 	}
-	active, hasManifest, err := readManifest(dir)
+	active, hasManifest, checkpoint, err := readManifest(dir)
+	db.flushedWAL = checkpoint
 	if err != nil {
 		return nil, err
 	}
@@ -147,30 +153,9 @@ func Open(dir string, opts Options) (_ *DB, err error) {
 		return nil, errors.New("manifest references missing SSTable")
 	}
 	sort.Slice(db.tables, func(i, j int) bool { return db.tables[i].id < db.tables[j].id })
-	db.wal, err = os.OpenFile(filepath.Join(dir, "data.log"), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
-	if err != nil {
-		return nil, err
-	}
 	recoveryStarted := time.Now()
-	r := bufio.NewReader(db.wal)
-	var valid int64
-	for {
-		e, n, readErr := readRecord(r)
-		if readErr == io.EOF {
-			break
-		}
-		if readErr == io.ErrUnexpectedEOF {
-			if err = db.wal.Truncate(valid); err != nil {
-				return nil, err
-			}
-			break
-		}
-		if readErr != nil {
-			return nil, fmt.Errorf("WAL recovery: %w", readErr)
-		}
-		valid += n
-		db.mem.shard(e.Key).put(e)
-		db.operations.Add(1)
+	if err = db.recoverWALs(); err != nil {
+		return nil, err
 	}
 	db.metrics.recoveryOps.Store(uint64(db.operations.Load()))
 	db.metrics.recoveryNanos.Store(uint64(time.Since(recoveryStarted)))
@@ -246,7 +231,7 @@ func (db *DB) mutate(e Entry) error {
 		return err
 	}
 	if flush {
-		return db.Flush()
+		return db.maybeFlush()
 	}
 	return nil
 }
@@ -270,6 +255,12 @@ func (db *DB) Get(key string) (value string, exists bool, readErr error) {
 	if e, ok := shard.get(key); ok {
 		db.metrics.memHits.Add(1)
 		return e.Value, !e.Deleted, nil
+	}
+	if db.frozen != nil {
+		if e, ok := db.frozen.mem.get(key); ok {
+			db.metrics.memHits.Add(1)
+			return e.Value, !e.Deleted, nil
+		}
 	}
 	if value, ok := db.cache.get(key); ok {
 		db.metrics.cacheHits.Add(1)
@@ -299,52 +290,6 @@ func (db *DB) Get(key string) (value string, exists bool, readErr error) {
 		}
 	}
 	return "", false, nil
-}
-func (db *DB) Flush() error {
-	db.maintenanceMu.Lock()
-	defer db.maintenanceMu.Unlock()
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if db.closed {
-		return ErrClosed
-	}
-	return db.flushLocked()
-}
-func (db *DB) flushLocked() error {
-	if db.writeErr != nil {
-		return db.writeErr
-	}
-	if db.walErr != nil {
-		return db.walErr
-	}
-	if db.operations.Load() == 0 {
-		return nil
-	}
-	started := time.Now()
-	entries := db.mem.entries()
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
-	t, err := db.writeTable(entries)
-	if err != nil {
-		return err
-	}
-	tables := append(append([]*sstable(nil), db.tables...), t)
-	if err = db.install(tables); err != nil {
-		t.close()
-		return err
-	}
-	if err = db.wal.Truncate(0); err != nil {
-		db.writeErr = err
-		return err
-	}
-	if err = db.wal.Sync(); err != nil {
-		db.writeErr = err
-		return err
-	}
-	db.mem = newMemTable()
-	db.operations.Store(0)
-	db.metrics.flushes.Add(1)
-	db.metrics.flushNanos.Add(uint64(time.Since(started)))
-	return nil
 }
 func (db *DB) writeTable(entries []Entry) (*sstable, error) {
 	i := 0
@@ -423,6 +368,7 @@ func (db *DB) Close() error {
 		return db.closeErr
 	}
 	db.closed = true
+	db.flushCond.Broadcast()
 	close(db.stop)
 	db.mu.Unlock()
 	// Let an in-flight worker finish before releasing mappings or the directory.

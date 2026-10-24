@@ -30,11 +30,18 @@ func (db *DB) Stats() Metrics {
 	defer db.mu.RUnlock()
 	c := &db.metrics
 	m := Metrics{Puts: c.puts.Load(), Deletes: c.deletes.Load(), Gets: c.gets.Load(), Misses: c.misses.Load(), MemtableHits: c.memHits.Load(), CacheHits: c.cacheHits.Load(), BloomChecks: c.bloomChecks.Load(), BloomSkips: c.bloomSkips.Load(), TableChecks: c.tableChecks.Load(), TableReads: c.tableReads.Load(), RecordsRead: c.recordsRead.Load(), LogicalReadBytes: c.readBytes.Load(), WALBytesWritten: c.walBytes.Load(), Flushes: c.flushes.Load(), FlushNanos: c.flushNanos.Load(), Compactions: c.compactions.Load(), CompactionNanos: c.compactionNanos.Load(), Scans: c.scans.Load(), ScanNanos: c.scanNanos.Load(), RecoveryOperations: c.recoveryOps.Load(), RecoveryNanos: c.recoveryNanos.Load(), StartupNanos: c.startupNanos.Load(), SSTables: int64(len(db.tables)), PendingOperations: db.operations.Load()}
-	for i := range db.mem.shards {
-		s := &db.mem.shards[i]
-		s.mu.RLock()
-		m.MemtableEntries += int64(s.count)
-		s.mu.RUnlock()
+	memtables := []*memTable{db.mem}
+	if db.frozen != nil {
+		memtables = append(memtables, db.frozen.mem)
+		m.PendingOperations += db.frozen.operations
+	}
+	for _, mem := range memtables {
+		for i := range mem.shards {
+			s := &mem.shards[i]
+			s.mu.RLock()
+			m.MemtableEntries += int64(s.count)
+			s.mu.RUnlock()
+		}
 	}
 	db.cache.mu.Lock()
 	m.CacheBytes = int64(db.cache.used)
@@ -50,8 +57,10 @@ func (db *DB) Stats() Metrics {
 			}
 		}
 	}
-	for _, name := range []string{"data.log", "MANIFEST"} {
-		if st, err := os.Stat(filepath.Join(db.dir, name)); err == nil {
+	walPaths, _ := filepath.Glob(filepath.Join(db.dir, "wal_*.log"))
+	paths := append(walPaths, filepath.Join(db.dir, "data.log"), filepath.Join(db.dir, "MANIFEST"))
+	for _, path := range paths {
+		if st, err := os.Stat(path); err == nil {
 			m.DiskBytes += st.Size()
 		}
 	}
