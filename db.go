@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -503,7 +504,7 @@ func (t *sstable) get(key string, metrics *counters) (Entry, bool, error) {
 	}
 	offset := entries[i].Offset
 	for {
-		e, n, err := recordAt(t.data, offset)
+		v, n, err := recordViewAt(t.data, offset)
 		if err == nil {
 			metrics.recordsRead.Add(1)
 			metrics.readBytes.Add(uint64(n))
@@ -514,10 +515,11 @@ func (t *sstable) get(key string, metrics *counters) (Entry, bool, error) {
 		if err != nil {
 			return Entry{}, false, err
 		}
-		if e.Key == key {
-			return e, true, nil
+		comparison := bytes.Compare(v.key, []byte(key))
+		if comparison == 0 {
+			return Entry{Key: key, Value: string(v.value), Deleted: v.deleted}, true, nil
 		}
-		if e.Key > key {
+		if comparison > 0 {
 			return Entry{}, false, nil
 		}
 		offset += n

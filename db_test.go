@@ -212,3 +212,38 @@ func TestMappedReads(t *testing.T) {
 		t.Fatal("mapping not released")
 	}
 }
+
+func TestPointReadChecksSkippedRecords(t *testing.T) {
+	db := openTest(t, Options{CacheBytes: -1, FlushThreshold: 10000})
+	for i := 0; i < 10; i++ {
+		must(t, db.Put(fmt.Sprintf("key%d", i), "payload"))
+	}
+	must(t, db.Flush())
+	table := db.tables[0]
+	original := table.data
+	table.data = append([]byte(nil), original...)
+	defer func() { table.data = original }()
+	var offset int64
+	for i := 0; i < 4; i++ {
+		_, n, err := recordViewAt(table.data, offset)
+		must(t, err)
+		offset += n
+	}
+	table.data[offset+recordHeader] ^= 1
+	if _, _, err := db.Get("key9"); err == nil {
+		t.Fatal("lookup ignored corruption in a traversed record")
+	}
+}
+
+func TestPointReadOwnsReturnedValue(t *testing.T) {
+	db := openTest(t, Options{CacheBytes: -1})
+	value := strings.Repeat("owned", 100)
+	must(t, db.Put("key", value))
+	must(t, db.Flush())
+	got, ok, err := db.Get("key")
+	must(t, err)
+	must(t, db.Close())
+	if !ok || got != value {
+		t.Fatal("returned value did not survive unmapping")
+	}
+}

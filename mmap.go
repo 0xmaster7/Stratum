@@ -58,51 +58,66 @@ func (t *sstable) close() error {
 }
 
 // recordAt validates bounds before touching a length-prefixed payload.
+type recordView struct {
+	key, value []byte
+	deleted    bool
+}
+
 func recordAt(data []byte, offset int64) (Entry, int64, error) {
+	v, n, err := recordViewAt(data, offset)
+	if err != nil {
+		return Entry{}, n, err
+	}
+	return Entry{Key: string(v.key), Value: string(v.value), Deleted: v.deleted}, n, nil
+}
+
+// Views borrow mapped bytes only while db.mu protects their mapping lifetime.
+// Every visited record retains its bounds and checksum validation.
+func recordViewAt(data []byte, offset int64) (recordView, int64, error) {
 	if offset < 0 || offset > int64(len(data)) {
-		return Entry{}, 0, errors.New("invalid record offset")
+		return recordView{}, 0, errors.New("invalid record offset")
 	}
 	if offset == int64(len(data)) {
-		return Entry{}, 0, io.EOF
+		return recordView{}, 0, io.EOF
 	}
 	b := data[offset:]
 	if b[0] != 'K' {
 		end := bytes.IndexByte(b, '\n')
 		if end < 0 {
-			return Entry{}, 0, io.ErrUnexpectedEOF
+			return recordView{}, 0, io.ErrUnexpectedEOF
 		}
 		line := b[:end]
-		var e Entry
+		var e recordView
 		if bytes.HasPrefix(line, []byte("DELETE ")) {
-			e = Entry{Key: string(line[7:]), Deleted: true}
+			e = recordView{key: line[7:], deleted: true}
 		} else if bytes.HasPrefix(line, []byte("PUT ")) {
 			split := bytes.IndexByte(line[4:], ' ')
 			if split < 0 {
-				return Entry{}, 0, errors.New("invalid legacy record")
+				return recordView{}, 0, errors.New("invalid legacy record")
 			}
-			e = Entry{Key: string(line[4 : 4+split]), Value: string(line[5+split:])}
+			e = recordView{key: line[4 : 4+split], value: line[5+split:]}
 		} else {
-			return Entry{}, 0, errors.New("invalid legacy record")
+			return recordView{}, 0, errors.New("invalid legacy record")
 		}
 		return e, int64(end + 1), nil
 	}
 	if len(b) < recordHeader {
-		return Entry{}, 0, io.ErrUnexpectedEOF
+		return recordView{}, 0, io.ErrUnexpectedEOF
 	}
 	if string(b[:4]) != "KVR1" || b[4] > 1 {
-		return Entry{}, 0, errors.New("invalid binary record header")
+		return recordView{}, 0, errors.New("invalid binary record header")
 	}
 	kl, vl := uint64(binary.LittleEndian.Uint32(b[5:9])), uint64(binary.LittleEndian.Uint32(b[9:13]))
 	size := uint64(recordHeader) + kl + vl
 	if kl+vl > maxRecordSize {
-		return Entry{}, 0, errors.New("record length exceeds limit")
+		return recordView{}, 0, errors.New("record length exceeds limit")
 	}
 	if size > uint64(len(b)) {
-		return Entry{}, 0, io.ErrUnexpectedEOF
+		return recordView{}, 0, io.ErrUnexpectedEOF
 	}
 	payload := b[recordHeader:size]
 	if recordCRC(b, payload) != binary.LittleEndian.Uint32(b[13:17]) {
-		return Entry{}, 0, errors.New("record checksum mismatch")
+		return recordView{}, 0, errors.New("record checksum mismatch")
 	}
-	return Entry{Key: string(payload[:kl]), Value: string(payload[kl:]), Deleted: b[4] == 1}, int64(size), nil
+	return recordView{key: payload[:kl], value: payload[kl:], deleted: b[4] == 1}, int64(size), nil
 }
