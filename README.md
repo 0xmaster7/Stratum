@@ -128,8 +128,8 @@ Flush and compaction build SSTables outside the global lock; the exclusive lock 
 data/
 ├── LOCK                  # advisory exclusive process lock
 ├── MANIFEST              # JSON list of the active SSTable IDs
-├── data.log              # active write-ahead log
-├── wal_00000000000000000001.log # frozen/recovered WAL segment, until checkpointed
+├── data.log              # legacy active WAL, migrated on rotation
+├── wal_00000000000000000001.log # numbered WAL; highest uncheckpointed generation is active
 ├── sstable_1.log          # sorted records; binary despite the .log suffix
 ├── sstable_1.index        # sparse binary key/offset records
 └── ...
@@ -144,9 +144,9 @@ CRC32C (4) | key bytes | value bytes
 
 Lengths and checksums use little-endian encoding. CRC32C covers the flag, lengths, and payload. Index records use the same envelope, with an eight-byte offset as the value.
 
-On open, the engine validates active SSTables, rebuilds their indexes and Bloom filters once, maps the files, and replays uncheckpointed WAL generations in order, followed by the active `data.log`. **Startup scans all active SSTable records**; metadata is not yet loaded from a persistent Bloom-filter format. A final incomplete WAL record is truncated. Malformed complete records and checksum failures produce errors. Legacy text `PUT key value` and `DELETE key` records remain readable, including in a WAL followed by newer binary records. A legacy directory gains a manifest automatically; future flushes and compactions write binary data. Old deletions that the earlier implementation already lost cannot be reconstructed.
+On open, the engine validates active SSTables, rebuilds their indexes and Bloom filters once, maps the files, and replays uncheckpointed WAL generations in order, with the highest generation used as the active WAL. Legacy `data.log`, if present, follows numbered segments because it held the newest writes in older revisions. **Startup scans all active SSTable records**; metadata is not yet loaded from a persistent Bloom-filter format. A final incomplete WAL record is truncated. Malformed complete records and checksum failures produce errors. Legacy text `PUT key value` and `DELETE key` records remain readable, including in a WAL followed by newer binary records. A legacy directory gains a manifest automatically; future flushes and compactions write binary data. Old deletions that the earlier implementation already lost cannot be reconstructed.
 
-WAL rotation syncs and renames the old WAL, creates and syncs a replacement, then switches writes to a new memtable. Background flush syncs its SSTable and index, then atomically publishes the table and flushed WAL generation in the manifest. Only afterward are checkpointed WAL segments removed. Recovery ignores segments at or below that checkpoint, preventing obsolete replay after a newer table has been published. Existing legacy directories open automatically; directories written by this revision require the WAL-generation-aware engine for recovery. Files absent from an existing manifest are ignored and cleaned up on open; missing referenced files are an error. Compaction uses the same publication boundary so leftover old files cannot resurrect deleted keys.
+WAL rotation syncs the old WAL, creates the next numbered log, persists its directory entry, and switches writes to a new memtable. Legacy `data.log` is migrated once. An empty replacement needs no payload sync; the first durable mutation syncs its contents, while fast writes are synced by rotation, explicit flush, or close. Background flush builds its index and Bloom filter while streaming the SSTable, syncs both files, then atomically publishes the table and flushed WAL generation in the manifest. Only afterward are checkpointed WAL segments removed. Their deletion needs no additional directory sync: a crash that restores an obsolete filename cannot bypass the durable checkpoint. Recovery ignores segments at or below that checkpoint, preventing obsolete replay after a newer table has been published. Existing legacy directories open automatically; directories written by this revision require the WAL-generation-aware engine for recovery. Files absent from an existing manifest are ignored and cleaned up on open; missing referenced files are an error. Compaction uses the same publication boundary so leftover old files cannot resurrect deleted keys.
 
 **Durability mode matters:**
 
@@ -173,9 +173,11 @@ Tests cover deletes across flush/restart, literal tombstone-like values, binary 
 
 ## Benchmarks
 
-The current optimization series adds cached scan views, allocation-light mapped lookups, selective cache retention, background flushes, unlocked compaction builds, and size-tier checks. Its before/after results are recorded separately under [`benchmarks/optimizations/`](benchmarks/optimizations/); the Kiban/LMDB comparison below describes the earlier pinned engine.
+The current optimization series adds cached scan views, allocation-light mapped lookups, selective cache retention, background flushes, unlocked compaction builds, and size-tier checks. Its before/after results are recorded separately under [`benchmarks/optimizations/`](benchmarks/optimizations/), followed by the [write-path recovery work](benchmarks/write-path/README.md); the Kiban/LMDB comparison below describes the earlier pinned engine.
 
-In the new **fast-mode 1M before/after comparison**, point-read p50 fell **13.31 → 3.78 µs**, verified point-read throughput rose **2.53×**, and latest-10 throughput rose **6.46×** with much smaller scan stalls. Scan p50 became slower, and fast insert/overwrite throughput fell **39%/45%**. These changes improve the large read workload with write and storage tradeoffs; see the [full results](benchmarks/optimizations/2026-10-24/matched-fast/REPORT.md). All 12 trials passed value, reopen, and recorded load checks. No new durable-write or Kiban/LMDB performance numbers are claimed.
+In the October 24 **fast-mode 1M before/after comparison (`b9a1c07` → `5d13cf5`)**, point-read p50 fell **13.31 → 3.78 µs**, verified point-read throughput rose **2.53×**, and latest-10 throughput rose **6.46×** with much smaller scan stalls. Scan p50 became slower, and fast insert/overwrite throughput fell **39%/45%**. These changes improve the large read workload with write and storage tradeoffs; see the [full results](benchmarks/optimizations/2026-10-24/matched-fast/REPORT.md). All 12 trials passed value, reopen, and recorded load checks. No new durable-write or Kiban/LMDB performance numbers are claimed.
+
+The subsequent [write-path follow-up](benchmarks/write-path/README.md) (`5d13cf5` → `37abd15`) removes redundant syncs and the second SSTable read pass. Its paired medians show **19–23% higher insert/overwrite throughput**, with **250 → 184** sync calls in the separate traced diagnostic. Most 1M trials were load-affected and every trial is retained; the report includes scan regressions and the worst write stalls. This is a partial recovery of the write regression.
 
 ### Matched Kiban and LMDB workload
 

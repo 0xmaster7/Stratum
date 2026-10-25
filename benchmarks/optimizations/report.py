@@ -150,6 +150,7 @@ def main():
     (root / "audit.json").write_text(json.dumps(audit, indent=2) + "\n")
     text = "# GoLSM optimization results: alternating revisions\n\n"
     text += f"Baseline `{meta['engine_revisions']['baseline']}` → optimized `{meta['engine_revisions']['optimized']}`. Fast mode only, three repetitions per size and revision, same upstream W1–W5 workload on pancakes. No new Kiban/LMDB or durable performance measurements.\n\n"
+    text += "Implementation changes, interpretation, and reproduction are in the [parent benchmark README](../../README.md).\n\n"
     text += f"Audited **{len(summaries)} trials**, **{calls:,} timed calls**, **{readbacks:,} write read-backs**, and **{reopened:,} records after new-process reopen**; no value errors.\n\n"
     text += (
         "All trials retained. "

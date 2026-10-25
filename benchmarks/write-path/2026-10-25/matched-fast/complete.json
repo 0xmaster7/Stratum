@@ -1,0 +1,8 @@
+{
+  "completed": 12,
+  "all_value_checks_pass": true,
+  "all_reopen_checks_pass": true,
+  "all_load_gates_pass": false,
+  "timed_calls": 3300000,
+  "finished_utc": "2026-10-25T17:14:38.395253+00:00"
+}

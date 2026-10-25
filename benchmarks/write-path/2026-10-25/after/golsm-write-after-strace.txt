@@ -1,0 +1,6 @@
+goos: linux
+goarch: amd64
+pkg: kvstore
+cpu: AMD EPYC 7763 64-Core Processor
+BenchmarkMaintenanceWritePath 	   20000	     73711 ns/op	         5.000 compactions	        20.00 flushes	    1977 B/op	       8 allocs/op
+PASS

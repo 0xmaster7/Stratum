@@ -1,0 +1,141 @@
+File: golsm-writepath-after.test
+Build ID: a7d584da51c11ef775f250de38bf31d646daed42
+Type: cpu
+Time: 2026-10-25 17:04:51 UTC
+Duration: 5.41s, Total samples = 740ms (13.68%)
+Showing nodes accounting for 740ms, 100% of 740ms total
+      flat  flat%   sum%        cum   cum%
+     470ms 63.51% 63.51%      470ms 63.51%  internal/runtime/syscall.Syscall6
+      40ms  5.41% 68.92%       40ms  5.41%  hash/crc32.castagnoliSSE42
+      30ms  4.05% 72.97%       30ms  4.05%  runtime.typePointers.next
+      20ms  2.70% 75.68%       60ms  8.11%  kvstore.recordViewAt
+      20ms  2.70% 78.38%       20ms  2.70%  runtime.asyncPreempt
+      20ms  2.70% 81.08%       20ms  2.70%  runtime.findObject
+      10ms  1.35% 82.43%       10ms  1.35%  container/heap.up
+      10ms  1.35% 83.78%       50ms  6.76%  hash/crc32.archUpdateCastagnoli
+      10ms  1.35% 85.14%       60ms  8.11%  hash/crc32.update
+      10ms  1.35% 86.49%       10ms  1.35%  internal/sync.(*Mutex).Lock (inline)
+      10ms  1.35% 87.84%       10ms  1.35%  kvstore.(*bloomFilter).addHash
+      10ms  1.35% 89.19%       70ms  9.46%  kvstore.recordCRC
+      10ms  1.35% 90.54%       10ms  1.35%  runtime.(*gcBits).bytep (inline)
+      10ms  1.35% 91.89%       10ms  1.35%  runtime.(*pallocBits).summarize
+      10ms  1.35% 93.24%       10ms  1.35%  runtime.(*unwinder).resolveInternal
+      10ms  1.35% 94.59%       50ms  6.76%  runtime.deductAssistCredit
+      10ms  1.35% 95.95%       30ms  4.05%  runtime.mallocgcSmallNoscan
+      10ms  1.35% 97.30%       10ms  1.35%  runtime.memmove
+      10ms  1.35% 98.65%       10ms  1.35%  runtime.scanframeworker
+      10ms  1.35%   100%      460ms 62.16%  syscall.Syscall
+         0     0%   100%       60ms  8.11%  bufio.(*Writer).Flush
+         0     0%   100%       60ms  8.11%  bufio.(*Writer).Write
+         0     0%   100%       10ms  1.35%  container/heap.Push
+         0     0%   100%       60ms  8.11%  hash/crc32.Update (inline)
+         0     0%   100%       10ms  1.35%  internal/poll.(*FD).Close
+         0     0%   100%       70ms  9.46%  internal/poll.(*FD).Fsync
+         0     0%   100%       70ms  9.46%  internal/poll.(*FD).Fsync.func1 (inline)
+         0     0%   100%      330ms 44.59%  internal/poll.(*FD).Write
+         0     0%   100%       10ms  1.35%  internal/poll.(*FD).decref
+         0     0%   100%       10ms  1.35%  internal/poll.(*FD).destroy
+         0     0%   100%       10ms  1.35%  internal/poll.(*SysFile).destroy (inline)
+         0     0%   100%       70ms  9.46%  internal/poll.ignoringEINTR (inline)
+         0     0%   100%      320ms 43.24%  internal/poll.ignoringEINTRIO (inline)
+         0     0%   100%       10ms  1.35%  internal/syscall/unix.Unlinkat
+         0     0%   100%      300ms 40.54%  kvstore.(*DB).Put
+         0     0%   100%      300ms 40.54%  kvstore.(*DB).compact
+         0     0%   100%      100ms 13.51%  kvstore.(*DB).compact.func1
+         0     0%   100%      300ms 40.54%  kvstore.(*DB).compactReady
+         0     0%   100%      100ms 13.51%  kvstore.(*DB).flushPending
+         0     0%   100%      100ms 13.51%  kvstore.(*DB).flushTo
+         0     0%   100%       20ms  2.70%  kvstore.(*DB).install (inline)
+         0     0%   100%       10ms  1.35%  kvstore.(*DB).maybeFlush
+         0     0%   100%      300ms 40.54%  kvstore.(*DB).mutate
+         0     0%   100%       20ms  2.70%  kvstore.(*DB).publish
+         0     0%   100%       10ms  1.35%  kvstore.(*DB).rotateLocked
+         0     0%   100%      400ms 54.05%  kvstore.(*DB).runCompactor
+         0     0%   100%       80ms 10.81%  kvstore.(*DB).writeTable
+         0     0%   100%      330ms 44.59%  kvstore.(*DB).writeTableIterator
+         0     0%   100%       10ms  1.35%  kvstore.(*sstable).close
+         0     0%   100%       10ms  1.35%  kvstore.(*sstable).mapFiles
+         0     0%   100%      300ms 40.54%  kvstore.BenchmarkMaintenanceWritePath
+         0     0%   100%       10ms  1.35%  kvstore.hash (inline)
+         0     0%   100%       10ms  1.35%  kvstore.mapFile
+         0     0%   100%      100ms 13.51%  kvstore.mergedRangeIterator.func1
+         0     0%   100%       90ms 12.16%  kvstore.recordAt
+         0     0%   100%       20ms  2.70%  kvstore.syncDir
+         0     0%   100%       10ms  1.35%  kvstore.writeIndex
+         0     0%   100%      390ms 52.70%  kvstore.writeRecord
+         0     0%   100%       10ms  1.35%  os.(*File).Close
+         0     0%   100%       70ms  9.46%  os.(*File).Sync
+         0     0%   100%      330ms 44.59%  os.(*File).Write
+         0     0%   100%      330ms 44.59%  os.(*File).write (inline)
+         0     0%   100%       10ms  1.35%  os.(*file).close
+         0     0%   100%       10ms  1.35%  os.OpenFile
+         0     0%   100%       40ms  5.41%  os.Remove
+         0     0%   100%       40ms  5.41%  os.Remove.func1 (inline)
+         0     0%   100%       10ms  1.35%  os.RemoveAll (inline)
+         0     0%   100%       60ms  8.11%  os.ignoringEINTR (inline)
+         0     0%   100%       10ms  1.35%  os.open
+         0     0%   100%       10ms  1.35%  os.openFileNolog
+         0     0%   100%       10ms  1.35%  os.openFileNolog.func1 (inline)
+         0     0%   100%       10ms  1.35%  os.removeAll
+         0     0%   100%       10ms  1.35%  os.removeAllFrom
+         0     0%   100%       10ms  1.35%  os.removeAllFrom.removedirat.func2 (inline)
+         0     0%   100%       10ms  1.35%  os.removedirat (inline)
+         0     0%   100%       10ms  1.35%  runtime.(*gcBits).bitp (inline)
+         0     0%   100%       10ms  1.35%  runtime.(*mcache).nextFree
+         0     0%   100%       10ms  1.35%  runtime.(*mcache).refill
+         0     0%   100%       10ms  1.35%  runtime.(*mcentral).cacheSpan
+         0     0%   100%       10ms  1.35%  runtime.(*mheap).freeSpan (inline)
+         0     0%   100%       10ms  1.35%  runtime.(*mheap).freeSpanLocked
+         0     0%   100%       10ms  1.35%  runtime.(*mspan).markBitsForIndex (inline)
+         0     0%   100%       10ms  1.35%  runtime.(*pageAlloc).free
+         0     0%   100%       10ms  1.35%  runtime.(*pageAlloc).update
+         0     0%   100%       10ms  1.35%  runtime.(*sweepLocked).sweep
+         0     0%   100%       10ms  1.35%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+         0     0%   100%       10ms  1.35%  runtime.(*unwinder).next
+         0     0%   100%       10ms  1.35%  runtime.copystack
+         0     0%   100%       10ms  1.35%  runtime.deductSweepCredit
+         0     0%   100%       40ms  5.41%  runtime.gcAssistAlloc
+         0     0%   100%       40ms  5.41%  runtime.gcAssistAlloc.func2
+         0     0%   100%       40ms  5.41%  runtime.gcAssistAlloc1
+         0     0%   100%       30ms  4.05%  runtime.gcBgMarkWorker
+         0     0%   100%       30ms  4.05%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       30ms  4.05%  runtime.gcDrain
+         0     0%   100%       30ms  4.05%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%       40ms  5.41%  runtime.gcDrainN
+         0     0%   100%       10ms  1.35%  runtime.gcmarknewobject
+         0     0%   100%       10ms  1.35%  runtime.growslice
+         0     0%   100%       40ms  5.41%  runtime.makeslice
+         0     0%   100%       80ms 10.81%  runtime.mallocgc
+         0     0%   100%       20ms  2.70%  runtime.markroot
+         0     0%   100%       20ms  2.70%  runtime.markroot.func1
+         0     0%   100%       50ms  6.76%  runtime.scanobject
+         0     0%   100%       20ms  2.70%  runtime.scanstack
+         0     0%   100%       10ms  1.35%  runtime.shrinkstack
+         0     0%   100%       40ms  5.41%  runtime.slicebytetostring
+         0     0%   100%       10ms  1.35%  runtime.sweepone
+         0     0%   100%       80ms 10.81%  runtime.systemstack
+         0     0%   100%       10ms  1.35%  sync.(*Mutex).Lock (inline)
+         0     0%   100%       10ms  1.35%  sync.(*RWMutex).Lock
+         0     0%   100%       10ms  1.35%  syscall.(*mmapper).Mmap
+         0     0%   100%       10ms  1.35%  syscall.(*mmapper).Munmap
+         0     0%   100%       10ms  1.35%  syscall.Close
+         0     0%   100%       70ms  9.46%  syscall.Fsync
+         0     0%   100%       10ms  1.35%  syscall.Mmap (inline)
+         0     0%   100%       10ms  1.35%  syscall.Munmap (inline)
+         0     0%   100%       10ms  1.35%  syscall.Open (inline)
+         0     0%   100%      470ms 63.51%  syscall.RawSyscall6
+         0     0%   100%       20ms  2.70%  syscall.Syscall6
+         0     0%   100%       40ms  5.41%  syscall.Unlink (inline)
+         0     0%   100%      320ms 43.24%  syscall.Write (inline)
+         0     0%   100%       10ms  1.35%  syscall.mmap
+         0     0%   100%       10ms  1.35%  syscall.munmap
+         0     0%   100%       10ms  1.35%  syscall.openat
+         0     0%   100%       40ms  5.41%  syscall.unlinkat
+         0     0%   100%      320ms 43.24%  syscall.write
+         0     0%   100%      310ms 41.89%  testing.(*B).launch
+         0     0%   100%      310ms 41.89%  testing.(*B).runN
+         0     0%   100%       10ms  1.35%  testing.(*B).runN.func1
+         0     0%   100%       10ms  1.35%  testing.(*common).Cleanup.func1
+         0     0%   100%       10ms  1.35%  testing.(*common).TempDir.func2
+         0     0%   100%       10ms  1.35%  testing.(*common).runCleanup
+         0     0%   100%       10ms  1.35%  testing.removeAll

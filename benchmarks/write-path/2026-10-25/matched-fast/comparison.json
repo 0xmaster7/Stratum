@@ -1,0 +1,363 @@
+{
+  "metadata": {
+    "started_utc": "2026-10-25T17:07:35.095557+00:00",
+    "mode": "fast",
+    "runs_per_size_and_revision": 3,
+    "sizes": [
+      10000,
+      1000000
+    ],
+    "baseline_metadata_sha256": "0c5191d01e3fb38fb3fd2afd1610e239252cbf59668f78d05c02ee13ebdcef16",
+    "baseline_variant": "optimized",
+    "engine_cpus": "1",
+    "driver_cpu": 0,
+    "engine_revisions": {
+      "baseline": "5d13cf58dc2f80a9ad579ecf57e67b1ec5ebf3d9",
+      "optimized": "37abd158624d6a0a629c10105ef02e0c31f46425"
+    },
+    "binary_sha256": {
+      "baseline": "78b8f96c62ae72a6da54190f52c0e5f894e252fe56ec820dee640c34675a878f",
+      "optimized": "72e48a4c5f263501c9c6ee212cd0c842e2af86b95a2a121d8fededafbfba18b5"
+    },
+    "harness_revision": "51f2af1b0e2702bd95b166932193a45bad8c34ea",
+    "kernel": {
+      "system": "Linux",
+      "node": "pancakes",
+      "release": "6.17.0-1022-azure",
+      "version": "#22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026",
+      "machine": "x86_64",
+      "processor": "x86_64"
+    },
+    "scope": "GoLSM before/after only; original W1-W5 fast workload; no new Kiban/LMDB measurements; generation/oracle/readbacks excluded from call latency but included in verified throughput"
+  },
+  "audit": {
+    "completed": 12,
+    "all_value_checks_pass": true,
+    "all_reopen_checks_pass": true,
+    "all_load_gates_pass": false,
+    "timed_calls": 3300000,
+    "finished_utc": "2026-10-25T17:14:38.395253+00:00"
+  },
+  "rows": [
+    {
+      "base_records": 10000,
+      "workload": "remember",
+      "variants": {
+        "baseline": {
+          "p50_ns": 2816,
+          "p99_ns": 22016,
+          "p999_ns": 6291456,
+          "max_ns": 94502117,
+          "verified_ops_s": 16297.247106665383,
+          "call_ops_s": 17316.878871971858,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            2816,
+            3008
+          ]
+        },
+        "optimized": {
+          "p50_ns": 2880,
+          "p99_ns": 25600,
+          "p999_ns": 2228224,
+          "max_ns": 63030492,
+          "verified_ops_s": 20024.27069763886,
+          "call_ops_s": 21709.104006706482,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            2816,
+            2880
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 10000,
+      "workload": "recall-by-id",
+      "variants": {
+        "baseline": {
+          "p50_ns": 2112,
+          "p99_ns": 17408,
+          "p999_ns": 135168,
+          "max_ns": 15119214,
+          "verified_ops_s": 141660.85538422666,
+          "call_ops_s": 181829.6866783571,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            1600,
+            2560
+          ]
+        },
+        "optimized": {
+          "p50_ns": 1664,
+          "p99_ns": 11264,
+          "p999_ns": 139264,
+          "max_ns": 10186900,
+          "verified_ops_s": 168909.23231682912,
+          "call_ops_s": 234031.2738799661,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            1504,
+            2240
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 10000,
+      "workload": "recent-for-agent",
+      "variants": {
+        "baseline": {
+          "p50_ns": 18944,
+          "p99_ns": 159744,
+          "p999_ns": 217088,
+          "max_ns": 1518540,
+          "verified_ops_s": 29905.638112046658,
+          "call_ops_s": 38877.84768813948,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            18432,
+            22016
+          ]
+        },
+        "optimized": {
+          "p50_ns": 19968,
+          "p99_ns": 163840,
+          "p999_ns": 835584,
+          "max_ns": 1438830,
+          "verified_ops_s": 26055.497182411946,
+          "call_ops_s": 33638.88440286333,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            18944,
+            33792
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 10000,
+      "workload": "update",
+      "variants": {
+        "baseline": {
+          "p50_ns": 3008,
+          "p99_ns": 20992,
+          "p999_ns": 6815744,
+          "max_ns": 204591473,
+          "verified_ops_s": 13909.297421441312,
+          "call_ops_s": 14602.386478535906,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            3008,
+            3072
+          ]
+        },
+        "optimized": {
+          "p50_ns": 3136,
+          "p99_ns": 25088,
+          "p999_ns": 417792,
+          "max_ns": 152330090,
+          "verified_ops_s": 16583.233544278253,
+          "call_ops_s": 17738.314332884718,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            3008,
+            3648
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 10000,
+      "workload": "mixed-90-10",
+      "variants": {
+        "baseline": {
+          "p50_ns": 2368,
+          "p99_ns": 19968,
+          "p999_ns": 176128,
+          "max_ns": 17466394,
+          "verified_ops_s": 79703.50932160438,
+          "call_ops_s": 99741.31789978736,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            2240,
+            2560
+          ]
+        },
+        "optimized": {
+          "p50_ns": 2304,
+          "p99_ns": 17920,
+          "p999_ns": 159744,
+          "max_ns": 12605193,
+          "verified_ops_s": 96493.84500018059,
+          "call_ops_s": 119406.250033583,
+          "all_load_gates_pass": true,
+          "p50_range_ns": [
+            2240,
+            3456
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 1000000,
+      "workload": "remember",
+      "variants": {
+        "baseline": {
+          "p50_ns": 3328,
+          "p99_ns": 32768,
+          "p999_ns": 12845056,
+          "max_ns": 587508171,
+          "verified_ops_s": 12883.94194837801,
+          "call_ops_s": 13731.473368428613,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            3328,
+            3392
+          ]
+        },
+        "optimized": {
+          "p50_ns": 3840,
+          "p99_ns": 36864,
+          "p999_ns": 15204352,
+          "max_ns": 473427633,
+          "verified_ops_s": 15301.476687231761,
+          "call_ops_s": 16653.205148204346,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            3456,
+            4608
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 1000000,
+      "workload": "recall-by-id",
+      "variants": {
+        "baseline": {
+          "p50_ns": 4032,
+          "p99_ns": 20480,
+          "p999_ns": 90112,
+          "max_ns": 15453189,
+          "verified_ops_s": 133931.42087934143,
+          "call_ops_s": 175238.06173925355,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            3968,
+            4224
+          ]
+        },
+        "optimized": {
+          "p50_ns": 4096,
+          "p99_ns": 18944,
+          "p999_ns": 53248,
+          "max_ns": 15294353,
+          "verified_ops_s": 136455.8040098714,
+          "call_ops_s": 180493.38303045364,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            4096,
+            6016
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 1000000,
+      "workload": "recent-for-agent",
+      "variants": {
+        "baseline": {
+          "p50_ns": 26112,
+          "p99_ns": 208896,
+          "p999_ns": 1835008,
+          "max_ns": 9617135,
+          "verified_ops_s": 20004.583742293955,
+          "call_ops_s": 24735.830819225746,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            25088,
+            32768
+          ]
+        },
+        "optimized": {
+          "p50_ns": 25600,
+          "p99_ns": 208896,
+          "p999_ns": 1736704,
+          "max_ns": 12310449,
+          "verified_ops_s": 20705.083132445092,
+          "call_ops_s": 25551.290210827792,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            24576,
+            38912
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 1000000,
+      "workload": "update",
+      "variants": {
+        "baseline": {
+          "p50_ns": 3392,
+          "p99_ns": 32256,
+          "p999_ns": 19922944,
+          "max_ns": 887718606,
+          "verified_ops_s": 11297.931611850698,
+          "call_ops_s": 11921.255536571573,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            3264,
+            3520
+          ]
+        },
+        "optimized": {
+          "p50_ns": 3392,
+          "p99_ns": 31232,
+          "p999_ns": 15466496,
+          "max_ns": 832814126,
+          "verified_ops_s": 13819.537428971711,
+          "call_ops_s": 14935.41434268259,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            3392,
+            4608
+          ]
+        }
+      }
+    },
+    {
+      "base_records": 1000000,
+      "workload": "mixed-90-10",
+      "variants": {
+        "baseline": {
+          "p50_ns": 4608,
+          "p99_ns": 27136,
+          "p999_ns": 114688,
+          "max_ns": 68045621,
+          "verified_ops_s": 69399.59572681261,
+          "call_ops_s": 81849.71282025598,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            4608,
+            4992
+          ]
+        },
+        "optimized": {
+          "p50_ns": 4864,
+          "p99_ns": 29184,
+          "p999_ns": 229376,
+          "max_ns": 60014122,
+          "verified_ops_s": 71039.89475956761,
+          "call_ops_s": 84268.53592436407,
+          "all_load_gates_pass": false,
+          "p50_range_ns": [
+            4736,
+            6656
+          ]
+        }
+      }
+    }
+  ]
+}

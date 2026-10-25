@@ -1,0 +1,27 @@
+{
+  "scope": "whole instrumented test process; diagnostic wall times are not uninstrumented benchmark latencies",
+  "objects": {
+    "directory": {
+      "fsync_calls": 79,
+      "traced_seconds": 0.427674
+    },
+    "manifest": {
+      "fsync_calls": 28,
+      "traced_seconds": 0.140938
+    },
+    "sstable_data": {
+      "fsync_calls": 26,
+      "traced_seconds": 0.164233
+    },
+    "sstable_index": {
+      "fsync_calls": 26,
+      "traced_seconds": 0.314499
+    },
+    "wal": {
+      "fsync_calls": 25,
+      "traced_seconds": 0.160737
+    }
+  },
+  "total_fsync_calls": 184,
+  "summed_traced_fsync_seconds": 1.208081
+}

@@ -1,0 +1,12 @@
+   Compiling golsm-engine-h2h v0.1.0 (/home/azureuser/projects/kvstore/benchmarks/engine-h2h)
+    Finished `release` profile [optimized + debuginfo] target(s) in 12.71s
+     Running unittests src/main.rs (target/release/deps/golsm_engine_h2h-5d1fef100cb76252)
+
+running 5 tests
+test metrics::tests::bounds_and_merge ... ok
+test model::tests::recent_order_and_payload_identity ... ok
+test random::tests::keyed_values_are_stable_distinct_and_prefix_consistent ... ok
+test runner::tests::verifies_real_database_across_reopen_and_rejects_corruption ... ok
+test tests::all_engines_and_modes_verify_reopen_and_reject_corruption ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.57s

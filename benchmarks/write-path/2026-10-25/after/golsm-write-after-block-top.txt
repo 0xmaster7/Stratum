@@ -1,0 +1,39 @@
+File: golsm-writepath-after.test
+Build ID: a7d584da51c11ef775f250de38bf31d646daed42
+Type: delay
+Time: 2026-10-25 17:04:56 UTC
+Showing nodes accounting for 9.78s, 100% of 9.79s total
+Dropped 12 nodes (cum <= 0.05s)
+      flat  flat%   sum%        cum   cum%
+     5.41s 55.27% 55.27%      5.41s 55.27%  runtime.chanrecv1
+     3.33s 34.03% 89.30%      3.33s 34.03%  sync.(*Cond).Wait
+     0.99s 10.15% 99.45%      0.99s 10.15%  runtime.selectgo
+     0.05s  0.52%   100%      0.05s  0.52%  sync.(*Mutex).Lock (inline)
+         0     0%   100%      3.33s 34.03%  kvstore.(*DB).Put
+         0     0%   100%      0.05s  0.55%  kvstore.(*DB).flushPending
+         0     0%   100%      3.33s 34.03%  kvstore.(*DB).maybeFlush
+         0     0%   100%      3.33s 34.03%  kvstore.(*DB).mutate
+         0     0%   100%      1.05s 10.70%  kvstore.(*DB).runCompactor
+         0     0%   100%      3.33s 34.03%  kvstore.BenchmarkMaintenanceWritePath
+         0     0%   100%      1.05s 10.70%  kvstore.Open.gowrap1
+         0     0%   100%      5.41s 55.27%  main.main
+         0     0%   100%      5.41s 55.27%  runtime.main
+         0     0%   100%      0.13s  1.29%  runtime/pprof.StopCPUProfile
+         0     0%   100%      0.13s  1.29%  sync.(*Once).Do (inline)
+         0     0%   100%      0.13s  1.29%  sync.(*Once).doSlow
+         0     0%   100%      5.28s 53.98%  testing.(*B).Run
+         0     0%   100%      5.21s 53.27%  testing.(*B).doBench
+         0     0%   100%      3.33s 34.03%  testing.(*B).doBench.gowrap1
+         0     0%   100%      3.33s 34.03%  testing.(*B).launch
+         0     0%   100%      5.21s 53.27%  testing.(*B).run
+         0     0%   100%      0.07s   0.7%  testing.(*B).run1
+         0     0%   100%      8.61s 88.01%  testing.(*B).runN
+         0     0%   100%      5.41s 55.27%  testing.(*M).Run
+         0     0%   100%      0.13s  1.29%  testing.(*M).Run.deferwrap1
+         0     0%   100%      0.13s  1.29%  testing.(*M).after
+         0     0%   100%      0.13s  1.29%  testing.(*M).after.func1
+         0     0%   100%      0.13s  1.29%  testing.(*M).writeProfiles
+         0     0%   100%      5.21s 53.27%  testing.(*benchState).processBench
+         0     0%   100%      5.28s 53.98%  testing.runBenchmarks
+         0     0%   100%      5.28s 53.98%  testing.runBenchmarks.func1
+         0     0%   100%      0.13s  1.29%  testing/internal/testdeps.TestDeps.StopCPUProfile

@@ -1,0 +1,121 @@
+{
+  "base_records": 1000000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1792948222.5413885,
+      "load": [
+        13.5791015625,
+        4.9892578125,
+        2.4794921875
+      ]
+    },
+    {
+      "epoch": 1792948229.2212129,
+      "load": [
+        12.97216796875,
+        5.00634765625,
+        2.49853515625
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "bridge": "Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included",
+    "cache_bytes": 16777216,
+    "compaction_interval_seconds": 30,
+    "compaction_threshold": 4,
+    "engine_commit": "37abd158624d6a0a629c10105ef02e0c31f46425",
+    "flush_threshold": 1000,
+    "per_write_sync": false
+  },
+  "final_engine_state": {
+    "go_heap_alloc": 52794096,
+    "go_num_gc": 164,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1507808,
+      "BloomChecks": 7369459,
+      "BloomSkips": 6218812,
+      "CacheBudget": 16777216,
+      "CacheBytes": 16777040,
+      "CacheHits": 0,
+      "CompactionNanos": 0,
+      "Compactions": 0,
+      "Deletes": 0,
+      "DiskBytes": 431987430,
+      "FlushNanos": 0,
+      "Flushes": 0,
+      "Gets": 1100000,
+      "IndexEntries": 120624,
+      "LogicalReadBytes": 2244412149,
+      "MappedBytes": 431987374,
+      "MemtableEntries": 0,
+      "MemtableHits": 0,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 0,
+      "RecordsRead": 6379185,
+      "RecoveryNanos": 6102903,
+      "RecoveryOperations": 0,
+      "SSTables": 7,
+      "ScanNanos": 1316843,
+      "Scans": 64,
+      "StartupNanos": 1372695842,
+      "TableChecks": 7379953,
+      "TableReads": 1150647,
+      "WALBytesWritten": 0,
+      "WriteError": ""
+    }
+  },
+  "final_population": 1100000,
+  "initial_engine_state": {
+    "go_heap_alloc": 16364872,
+    "go_num_gc": 126,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1507808,
+      "BloomChecks": 0,
+      "BloomSkips": 0,
+      "CacheBudget": 16777216,
+      "CacheBytes": 0,
+      "CacheHits": 0,
+      "CompactionNanos": 0,
+      "Compactions": 0,
+      "Deletes": 0,
+      "DiskBytes": 431987430,
+      "FlushNanos": 0,
+      "Flushes": 0,
+      "Gets": 0,
+      "IndexEntries": 120624,
+      "LogicalReadBytes": 0,
+      "MappedBytes": 431987374,
+      "MemtableEntries": 0,
+      "MemtableHits": 0,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 0,
+      "RecordsRead": 0,
+      "RecoveryNanos": 6102903,
+      "RecoveryOperations": 0,
+      "SSTables": 7,
+      "ScanNanos": 0,
+      "Scans": 0,
+      "StartupNanos": 1372695842,
+      "TableChecks": 0,
+      "TableReads": 0,
+      "WALBytesWritten": 0,
+      "WriteError": ""
+    }
+  },
+  "measurement_end_epoch": 1792948229.2212129,
+  "measurement_start_epoch": 1792948222.5413885,
+  "peak_rss_bytes": 520949760,
+  "preload": null,
+  "proc_io": "rchar: 424423814\nwchar: 7599374\nsyscr: 103682\nsyscw: 120626\nread_bytes: 12288\nwrite_bytes: 7618560\ncancelled_write_bytes: 0\n",
+  "proc_stat": "1470827 (golsm-engine-h2) R 1460294 1460294 1460294 0 -1 4194304 20414 0 1 0 713 41 0 0 20 0 5 0 77600476 3138195456 127154 18446744073709551615 99923183949984 99923185855648 140729016658432 0 0 0 0 4096 4195520 0 0 0 17 1 0 0 0 0 0 99923186851896 99923186927362 99923575742464 140729016662979 140729016663203 140729016663203 140729016663969 0\n",
+  "rss_bytes": 520949760,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 100000
+}
