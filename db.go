@@ -306,51 +306,87 @@ func (db *DB) writeTableIterator(next func() (Entry, bool, error)) (*sstable, er
 	id := db.nextID
 	db.nextID++
 	path := filepath.Join(db.dir, fmt.Sprintf("sstable_%d.log", id))
-	f, err := os.OpenFile(path+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	table := &sstable{id: id, path: path, indexPath: strings.TrimSuffix(path, ".log") + ".index"}
+	data, err := os.OpenFile(path+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
+	defer data.Close()
 	defer os.Remove(path + ".tmp")
-	w := bufio.NewWriter(f)
+	index, err := os.OpenFile(table.indexPath+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, err
+	}
+	defer index.Close()
+	defer os.Remove(table.indexPath + ".tmp")
+	dataWriter, indexWriter := bufio.NewWriter(data), bufio.NewWriter(index)
+	var offset int64
+	var hashes []uint64
+	var last string
 	for {
-		e, ok, nextErr := next()
-		if nextErr != nil {
-			f.Close()
-			return nil, nextErr
+		entry, ok, err := next()
+		if err != nil {
+			return nil, err
 		}
 		if !ok {
 			break
 		}
-		if _, err = writeRecord(w, e); err != nil {
-			f.Close()
+		if table.count > 0 && entry.Key <= last {
+			return nil, errors.New("unsorted SSTable")
+		}
+		n, err := writeRecord(dataWriter, entry)
+		if err != nil {
 			return nil, err
 		}
+		if table.count == 0 {
+			table.minKey = entry.Key
+		}
+		table.maxKey = entry.Key
+		if table.count%10 == 0 {
+			table.index = append(table.index, IndexEntry{entry.Key, offset})
+			if _, err = writeIndex(indexWriter, entry.Key, offset); err != nil {
+				return nil, err
+			}
+		}
+		hashes = append(hashes, hash(entry.Key))
+		offset += n
+		last = entry.Key
+		table.count++
 	}
-	if err = w.Flush(); err == nil {
-		err = f.Sync()
+	table.bloom = newBloom(table.count)
+	for _, h := range hashes {
+		table.bloom.addHash(h)
 	}
-	closeErr := f.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
+	// Build metadata in the same pass as data. Both files remain temporary until
+	// complete and synced; manifest publication keeps its existing ordering.
+	if err = dataWriter.Flush(); err != nil {
 		return nil, err
 	}
-	t := &sstable{id: id, path: path, indexPath: strings.TrimSuffix(path, ".log") + ".index"}
-	// Publish only complete, synced data. A crash before WAL truncation is safe to replay.
+	if err = indexWriter.Flush(); err != nil {
+		return nil, err
+	}
+	if err = data.Sync(); err != nil {
+		return nil, err
+	}
+	if err = index.Sync(); err != nil {
+		return nil, err
+	}
+	if err = errors.Join(data.Close(), index.Close()); err != nil {
+		return nil, err
+	}
 	if err = os.Rename(path+".tmp", path); err != nil {
 		return nil, err
 	}
-	if err = t.rebuildIndex(); err != nil {
+	if err = os.Rename(table.indexPath+".tmp", table.indexPath); err != nil {
 		return nil, err
 	}
 	if err = syncDir(db.dir); err != nil {
 		return nil, err
 	}
-	if err = t.mapFiles(); err != nil {
+	if err = table.mapFiles(); err != nil {
 		return nil, err
 	}
-	return t, nil
+	return table, nil
 }
 func syncDir(path string) error {
 	f, err := os.Open(path)

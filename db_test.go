@@ -247,3 +247,53 @@ func TestPointReadOwnsReturnedValue(t *testing.T) {
 		t.Fatal("returned value did not survive unmapping")
 	}
 }
+
+func TestStreamingTableMetadataMatchesRebuiltIndex(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1, FlushThreshold: 10000})
+	for i := 0; i < 113; i++ {
+		key := fmt.Sprintf("key%04d", i)
+		must(t, db.Put(key, strings.Repeat("value", i%9)))
+	}
+	must(t, db.Delete("key0020"))
+	must(t, db.Flush())
+	table := db.tables[0]
+	originalIndex, err := os.ReadFile(table.indexPath)
+	must(t, err)
+	count, minKey, maxKey := table.count, table.minKey, table.maxKey
+	must(t, table.rebuildIndex())
+	rebuilt, err := os.ReadFile(table.indexPath)
+	must(t, err)
+	if !bytes.Equal(originalIndex, rebuilt) || table.count != count || table.minKey != minKey || table.maxKey != maxKey {
+		t.Fatal("streaming metadata differs from validated rebuild")
+	}
+	for i := 0; i < 113; i++ {
+		key := fmt.Sprintf("key%04d", i)
+		value := strings.Repeat("value", i%9)
+		if i == 20 {
+			value = ""
+		}
+		want(t, db, key, value, i != 20)
+	}
+}
+
+func TestStreamingTableRejectsInvalidIterator(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1})
+	i := 0
+	_, err := db.writeTableIterator(func() (Entry, bool, error) {
+		i++
+		switch i {
+		case 1:
+			return Entry{Key: "z", Value: "one"}, true, nil
+		case 2:
+			return Entry{Key: "a", Value: "two"}, true, nil
+		default:
+			return Entry{}, false, nil
+		}
+	})
+	if err == nil {
+		t.Fatal("unsorted stream accepted")
+	}
+	must(t, db.Put("safe", "value"))
+	must(t, db.Flush())
+	want(t, db, "safe", "value", true)
+}
