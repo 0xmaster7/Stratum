@@ -33,25 +33,63 @@ func (db *DB) recoverWALs() error {
 	if err != nil {
 		return err
 	}
-	generations := make(map[string]uint64, len(paths))
-	db.walGeneration = db.flushedWAL + 1
+	generations := make(map[string]uint64, len(paths)+1)
+	seen := make(map[uint64]bool)
+	largest := db.flushedWAL
 	for _, path := range paths {
 		gen, err := walGeneration(path)
 		if err != nil {
 			return err
 		}
+		if seen[gen] {
+			return fmt.Errorf("duplicate WAL generation %d", gen)
+		}
+		seen[gen] = true
 		generations[path] = gen
-		if gen >= db.walGeneration {
-			db.walGeneration = gen + 1
+		if gen > largest {
+			largest = gen
 		}
 	}
+	if largest == ^uint64(0) {
+		return errors.New("WAL generation exhausted")
+	}
+	legacy := filepath.Join(db.dir, "data.log")
+	_, legacyErr := os.Stat(legacy)
+	if legacyErr != nil && !os.IsNotExist(legacyErr) {
+		return legacyErr
+	}
+	var active string
+	if legacyErr == nil {
+		// Old revisions always put their newest writes in data.log.
+		generations[legacy] = largest + 1
+		paths = append(paths, legacy)
+		active = legacy
+	} else {
+		for _, path := range paths {
+			if generations[path] > db.flushedWAL && (active == "" || generations[path] > generations[active]) {
+				active = path
+			}
+		}
+		if active == "" {
+			active = filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", largest+1))
+			if largest == 0 && len(paths) == 0 {
+				active = legacy
+			} // Keep fresh legacy directories readable.
+			generations[active] = largest + 1
+			paths = append(paths, active)
+		}
+	}
+	db.walGeneration = generations[active]
 	sort.Slice(paths, func(i, j int) bool { return generations[paths[i]] < generations[paths[j]] })
-	paths = append(paths, filepath.Join(db.dir, "data.log"))
 	for _, path := range paths {
-		if gen, ok := generations[path]; ok && gen <= db.flushedWAL {
+		if generations[path] <= db.flushedWAL {
 			continue
 		}
-		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+		flags := os.O_RDWR | os.O_APPEND
+		if path == active {
+			flags |= os.O_CREATE
+		}
+		f, err := os.OpenFile(path, flags, 0644)
 		if err != nil {
 			return err
 		}
@@ -74,7 +112,7 @@ func (db *DB) recoverWALs() error {
 			db.mem.shard(e.Key).put(e)
 			db.operations.Add(1)
 		}
-		if path == filepath.Join(db.dir, "data.log") {
+		if path == active {
 			db.wal = f
 		} else {
 			err = errors.Join(err, f.Close())
@@ -83,7 +121,6 @@ func (db *DB) recoverWALs() error {
 			return err
 		}
 	}
-	// Persist a newly created active WAL name before durable mutations can return.
 	if err := db.wal.Sync(); err != nil {
 		return err
 	}
@@ -114,9 +151,10 @@ func (db *DB) removeFlushedWALs() error {
 	return nil
 }
 
-// rotateLocked is a short publication boundary: all mutations are excluded.
-// The old WAL is durable before its name changes. Recovery replays every segment
-// newer than the manifest checkpoint, then data.log, in that order.
+// rotateLocked syncs the old WAL, then creates a uniquely named next generation.
+// Its directory entry is synced before writers can use it. The empty file has
+// no payload to sync: durable Put syncs its first record, and Flush/Close sync
+// fast writes. Only legacy data.log needs a one-time rename and directory sync.
 func (db *DB) rotateLocked() error {
 	if db.frozen != nil || db.operations.Load() == 0 {
 		return nil
@@ -125,28 +163,31 @@ func (db *DB) rotateLocked() error {
 	if db.walErr != nil {
 		return db.walErr
 	}
+	if db.walGeneration == ^uint64(0) {
+		return fail(errors.New("WAL generation exhausted"))
+	}
 	if err := db.wal.Sync(); err != nil {
 		return fail(err)
 	}
-	path := filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", db.walGeneration))
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		return fail(fmt.Errorf("WAL segment already exists or cannot be inspected: %s", path))
+	if filepath.Base(db.wal.Name()) == "data.log" {
+		oldPath := filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", db.walGeneration))
+		if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+			return fail(fmt.Errorf("WAL segment already exists or cannot be inspected: %s", oldPath))
+		}
+		if err := os.Rename(db.wal.Name(), oldPath); err != nil {
+			return fail(err)
+		}
+		if err := syncDir(db.dir); err != nil {
+			return fail(err)
+		}
 	}
-	if err := os.Rename(filepath.Join(db.dir, "data.log"), path); err != nil {
-		return fail(err)
-	}
-	// Make the rename durable before a new active WAL can acknowledge writes.
-	if err := syncDir(db.dir); err != nil {
-		return fail(err)
-	}
-	newWAL, err := os.OpenFile(filepath.Join(db.dir, "data.log"), os.O_CREATE|os.O_EXCL|os.O_RDWR|os.O_APPEND, 0644)
+	nextGeneration := db.walGeneration + 1
+	path := filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", nextGeneration))
+	newWAL, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		return fail(err)
 	}
-	if err = newWAL.Sync(); err == nil {
-		err = syncDir(db.dir)
-	}
-	if err != nil {
+	if err = syncDir(db.dir); err != nil {
 		newWAL.Close()
 		return fail(err)
 	}
@@ -156,7 +197,7 @@ func (db *DB) rotateLocked() error {
 		return fail(err)
 	}
 	db.frozen = &frozenMemtable{mem: db.mem, generation: db.walGeneration, operations: db.operations.Load()}
-	db.walGeneration++
+	db.walGeneration = nextGeneration
 	db.mem = newMemTable()
 	db.operations.Store(0)
 	return nil

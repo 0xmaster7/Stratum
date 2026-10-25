@@ -99,7 +99,11 @@ func TestCrashRecoveryWALGenerations(t *testing.T) {
 		path = filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", db.walGeneration))
 		if stage == "rename" {
 			must(t, db.wal.Sync())
-			must(t, os.Rename(filepath.Join(db.dir, "data.log"), path))
+			// Construct the previous revision's legacy rename boundary.
+			legacy := filepath.Join(db.dir, "data.log")
+			must(t, os.Rename(db.wal.Name(), legacy))
+			must(t, syncDir(db.dir))
+			must(t, os.Rename(legacy, path))
 			must(t, syncDir(db.dir))
 			os.Exit(0)
 		}
@@ -173,5 +177,66 @@ func TestReappearingCheckpointedFilesAreIgnored(t *testing.T) {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("obsolete file remains: %s: %v", path, err)
 		}
+	}
+}
+
+func TestLegacyActiveWALFollowsNumberedSegments(t *testing.T) {
+	dir := t.TempDir()
+	must(t, os.WriteFile(filepath.Join(dir, "wal_00000000000000000001.log"), []byte("PUT key older\nPUT other retained\n"), 0644))
+	must(t, os.WriteFile(filepath.Join(dir, "data.log"), []byte("PUT key newest\n"), 0644))
+	db, err := Open(dir, Options{CompactionInterval: -1})
+	must(t, err)
+	defer db.Close()
+	want(t, db, "key", "newest", true)
+	want(t, db, "other", "retained", true)
+	must(t, db.Flush())
+	if filepath.Base(db.wal.Name()) == "data.log" {
+		t.Fatal("rotation did not switch to a numbered active WAL")
+	}
+	must(t, db.Put("key", "after migration"))
+	must(t, db.Close())
+	again, err := Open(dir, Options{})
+	must(t, err)
+	defer again.Close()
+	want(t, again, "key", "after migration", true)
+}
+
+func TestNumberedActiveWALWithPartialTail(t *testing.T) {
+	dir := t.TempDir()
+	older := filepath.Join(dir, "wal_00000000000000000002.log")
+	active := filepath.Join(dir, "wal_00000000000000000003.log")
+	must(t, os.WriteFile(older, []byte("PUT key older\nPUT other retained\n"), 0644))
+	valid := []byte("PUT key newest\n")
+	must(t, os.WriteFile(active, append(valid, []byte("KVR")...), 0644))
+	db, err := Open(dir, Options{CompactionInterval: -1})
+	must(t, err)
+	defer db.Close()
+	if db.wal.Name() != active || db.walGeneration != 3 {
+		t.Fatal("did not recover the highest numbered WAL as active")
+	}
+	st, err := os.Stat(active)
+	must(t, err)
+	if st.Size() != int64(len(valid)) {
+		t.Fatal("partial tail retained")
+	}
+	want(t, db, "key", "newest", true)
+	want(t, db, "other", "retained", true)
+	must(t, db.Put("key", "appended"))
+	must(t, db.Flush())
+	must(t, db.Close())
+	again, err := Open(dir, Options{})
+	must(t, err)
+	defer again.Close()
+	want(t, again, "key", "appended", true)
+}
+
+func TestDuplicateWALGenerationRejected(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"wal_1.log", "wal_00000000000000000001.log"} {
+		must(t, os.WriteFile(filepath.Join(dir, name), nil, 0644))
+	}
+	if db, err := Open(dir, Options{}); err == nil {
+		db.Close()
+		t.Fatal("ambiguous generations accepted")
 	}
 }
