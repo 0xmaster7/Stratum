@@ -26,6 +26,16 @@ def main():
     parser.add_argument("--before-binary", required=True, type=pathlib.Path)
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument(
+        "--sizes",
+        nargs="+",
+        type=int,
+        choices=[10000, 1000000],
+        default=[10000, 1000000],
+    )
+    parser.add_argument(
+        "--baseline-variant", choices=["baseline", "optimized"], default="optimized"
+    )
+    parser.add_argument(
         "--baseline-metadata",
         type=pathlib.Path,
         default=protocol.ROOT / "results/2026-10-24/metadata.json",
@@ -39,24 +49,34 @@ def main():
     args.keep_databases = False
     baseline = json.loads(args.baseline_metadata.read_text())
     verified = json.loads(args.baseline_metadata.with_name("complete.json").read_text())
-    assert verified["zero_value_errors"] and verified["all_reopen_verified"]
+    if "binary_sha256" in baseline:
+        assert verified["all_value_checks_pass"] and verified["all_reopen_checks_pass"]
+        before_hash = baseline["binary_sha256"][args.baseline_variant]
+        before_revision = baseline["engine_revisions"][args.baseline_variant]
+    else:
+        assert verified["zero_value_errors"] and verified["all_reopen_verified"]
+        before_hash = baseline["engine_sha256"]
+        before_revision = baseline["engine_versions"]["golsm"]
     binaries = {
         "baseline": args.before_binary.resolve(),
         "optimized": protocol.ROOT / "target/release/golsm-engine-h2h",
     }
     hashes = {name: sha(path) for name, path in binaries.items()}
-    assert hashes["baseline"] == baseline["engine_sha256"], (
-        "baseline binary must match the recorded original campaign"
+    assert hashes["baseline"] == before_hash, (
+        "baseline binary must match its recorded completed campaign"
     )
     revisions = {
-        "baseline": baseline["engine_versions"]["golsm"],
+        "baseline": before_revision,
         "optimized": (protocol.ROOT / "build/golsm-revision.txt").read_text().strip(),
     }
+    assert len(args.sizes) == len(set(args.sizes))
     metadata = {
         "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "mode": "fast",
         "runs_per_size_and_revision": args.runs,
-        "sizes": [10000, 1000000],
+        "sizes": args.sizes,
+        "baseline_metadata_sha256": sha(args.baseline_metadata),
+        "baseline_variant": args.baseline_variant,
         "engine_cpus": "1",
         "driver_cpu": 0,
         "engine_revisions": revisions,
@@ -71,7 +91,7 @@ def main():
     for variant in binaries:
         (out / variant).mkdir()
     all_trials = []
-    for n in [10000, 1000000]:
+    for n in args.sizes:
         ops = 10000 if n == 10000 else 100000
         for trial in range(1, args.runs + 1):
             # Alternate which revision goes first, retaining every result.
@@ -93,10 +113,10 @@ def main():
                     assert metrics["BackgroundError"] == metrics["WriteError"] == ""
                 all_trials.append({"variant": variant, "summary": summary})
                 protocol.dump(out / "progress.json", {"completed": len(all_trials)})
-    expected = 2 * 2 * args.runs
+    expected = len(args.sizes) * 2 * args.runs
     assert len(all_trials) == expected
     aggregate = []
-    for n in [10000, 1000000]:
+    for n in args.sizes:
         for workload in protocol.STAGES:
             row = {"base_records": n, "workload": workload, "variants": {}}
             for variant in binaries:
