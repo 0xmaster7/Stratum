@@ -98,7 +98,6 @@ func (db *DB) removeFlushedWALs() error {
 	if err != nil {
 		return err
 	}
-	changed := false
 	for _, path := range paths {
 		gen, err := walGeneration(path)
 		if err != nil {
@@ -108,12 +107,10 @@ func (db *DB) removeFlushedWALs() error {
 			if err = os.Remove(path); err != nil && !os.IsNotExist(err) {
 				return err
 			}
-			changed = true
 		}
 	}
-	if changed {
-		return syncDir(db.dir)
-	}
+	// Deletion need not be crash-durable: the synced manifest checkpoint makes
+	// a reappearing segment obsolete, and recovery removes it without replay.
 	return nil
 }
 

@@ -159,7 +159,8 @@ func (db *DB) compact(afterSnapshot func(), automatic bool) error {
 			}
 		}
 	}
-	cleanupErr = errors.Join(cleanupErr, syncDir(db.dir))
+	// The manifest was synced before unlinking inputs. If a crash restores an
+	// old directory entry, Open ignores and removes it using that manifest.
 	if cleanupErr != nil {
 		return cleanupErr
 	}

@@ -146,3 +146,32 @@ func TestCrashRecoveryWALGenerations(t *testing.T) {
 		})
 	}
 }
+
+func TestReappearingCheckpointedFilesAreIgnored(t *testing.T) {
+	db := openTest(t, Options{CompactionInterval: -1})
+	must(t, db.Put("key", "old"))
+	must(t, db.Put("gone", "old"))
+	must(t, db.Flush())
+	obsolete := db.tables[0]
+	checkpoint := db.flushedWAL
+	must(t, db.Put("key", "new"))
+	must(t, db.Delete("gone"))
+	must(t, db.Compact())
+	must(t, db.Close())
+	// Model unlinks being lost across a crash after their replacement/checkpoint
+	// was synced. Even corrupt obsolete files must not be decoded or replayed.
+	paths := []string{obsolete.path, obsolete.indexPath, filepath.Join(db.dir, fmt.Sprintf("wal_%020d.log", checkpoint))}
+	for _, path := range paths {
+		must(t, os.WriteFile(path, []byte("obsolete corrupt bytes"), 0644))
+	}
+	reopened, err := Open(db.dir, Options{})
+	must(t, err)
+	defer reopened.Close()
+	want(t, reopened, "key", "new", true)
+	want(t, reopened, "gone", "", false)
+	for _, path := range paths {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("obsolete file remains: %s: %v", path, err)
+		}
+	}
+}
