@@ -274,3 +274,36 @@ func BenchmarkScanLatest10(b *testing.B) {
 		})
 	}
 }
+
+// Diagnostic benchmark: normal background maintenance, including final drain.
+// CPU/block/syscall profiles cover the entire test process, not only its timer.
+func BenchmarkMaintenanceWritePath(b *testing.B) {
+	db, err := Open(b.TempDir(), Options{})
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			b.Error(err)
+		}
+	})
+	keys := benchmarkKeys(benchKeys)
+	value := strings.Repeat("v", 291)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := db.Put(keys[i%len(keys)], value); err != nil {
+			b.Fatal(err)
+		}
+	}
+	if err := db.Flush(); err != nil {
+		b.Fatal(err)
+	}
+	b.StopTimer()
+	metrics := db.Stats()
+	if metrics.WriteError != "" || metrics.BackgroundError != "" {
+		b.Fatal(metrics)
+	}
+	b.ReportMetric(float64(metrics.Flushes), "flushes")
+	b.ReportMetric(float64(metrics.Compactions), "compactions")
+}

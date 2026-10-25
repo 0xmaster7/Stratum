@@ -1,0 +1,188 @@
+File: golsm-writepath-before.test
+Build ID: 8775aec1d338b925f850612f01ec072174c8d6ab
+Type: cpu
+Time: 2026-10-25 16:53:32 UTC
+Duration: 8.08s, Total samples = 1.35s (16.72%)
+Showing nodes accounting for 1.35s, 100% of 1.35s total
+      flat  flat%   sum%        cum   cum%
+     0.57s 42.22% 42.22%      0.57s 42.22%  internal/runtime/syscall.Syscall6
+     0.14s 10.37% 52.59%      0.14s 10.37%  hash/crc32.castagnoliSSE42
+     0.06s  4.44% 57.04%      0.06s  4.44%  runtime.typePointers.next
+     0.05s  3.70% 60.74%      0.05s  3.70%  runtime.memmove
+     0.04s  2.96% 63.70%      0.14s 10.37%  kvstore.mergedRangeIterator.func1
+     0.03s  2.22% 65.93%      0.03s  2.22%  kvstore.(*bloomFilter).addHash
+     0.03s  2.22% 68.15%      0.30s 22.22%  kvstore.(*sstable).rebuildIndex
+     0.03s  2.22% 70.37%      0.03s  2.22%  kvstore.hash (inline)
+     0.03s  2.22% 72.59%      0.12s  8.89%  runtime.scanobject
+     0.02s  1.48% 74.07%      0.17s 12.59%  hash/crc32.archUpdateCastagnoli
+     0.02s  1.48% 75.56%      0.07s  5.19%  kvstore.(*memShard).put
+     0.02s  1.48% 77.04%      0.02s  1.48%  runtime.(*mspan).base (inline)
+     0.02s  1.48% 78.52%      0.02s  1.48%  runtime.asyncPreempt
+     0.02s  1.48% 80.00%      0.02s  1.48%  runtime.mallocgcSmallScanNoHeader
+     0.01s  0.74% 80.74%      0.18s 13.33%  hash/crc32.update
+     0.01s  0.74% 81.48%      0.03s  2.22%  internal/poll.(*FD).Read
+     0.01s  0.74% 82.22%      0.01s  0.74%  internal/poll.(*pollDesc).prepare
+     0.01s  0.74% 82.96%      0.01s  0.74%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+     0.01s  0.74% 83.70%      0.01s  0.74%  kvstore.mergeHeap.Less
+     0.01s  0.74% 84.44%      0.01s  0.74%  kvstore.mergeHeap.Swap
+     0.01s  0.74% 85.19%      0.62s 45.93%  kvstore.writeRecord
+     0.01s  0.74% 85.93%      0.01s  0.74%  runtime.(*gcBits).bytep (inline)
+     0.01s  0.74% 86.67%      0.03s  2.22%  runtime.(*mcentral).grow
+     0.01s  0.74% 87.41%      0.01s  0.74%  runtime.(*mheap).initSpan
+     0.01s  0.74% 88.15%      0.01s  0.74%  runtime.(*scavengeIndex).free
+     0.01s  0.74% 88.89%      0.01s  0.74%  runtime.(*spanSet).push
+     0.01s  0.74% 89.63%      0.01s  0.74%  runtime.arenaIndex (inline)
+     0.01s  0.74% 90.37%      0.01s  0.74%  runtime.bool2int (inline)
+     0.01s  0.74% 91.11%      0.01s  0.74%  runtime.casgstatus
+     0.01s  0.74% 91.85%      0.01s  0.74%  runtime.findBitRange64 (inline)
+     0.01s  0.74% 92.59%      0.01s  0.74%  runtime.futex
+     0.01s  0.74% 93.33%      0.03s  2.22%  runtime.greyobject
+     0.01s  0.74% 94.07%      0.05s  3.70%  runtime.growslice
+     0.01s  0.74% 94.81%      0.22s 16.30%  runtime.mallocgc
+     0.01s  0.74% 95.56%      0.10s  7.41%  runtime.mallocgcSmallNoscan
+     0.01s  0.74% 96.30%      0.01s  0.74%  runtime.pageIndexOf (inline)
+     0.01s  0.74% 97.04%      0.03s  2.22%  runtime.scanblock
+     0.01s  0.74% 97.78%      0.02s  1.48%  runtime.spanOf (inline)
+     0.01s  0.74% 98.52%      0.03s  2.22%  runtime.sweepone
+     0.01s  0.74% 99.26%      0.01s  0.74%  sort.partition_func
+     0.01s  0.74%   100%      0.01s  0.74%  sync/atomic.(*Uint64).Add (inline)
+         0     0%   100%      0.04s  2.96%  bufio.(*Reader).Read
+         0     0%   100%      0.15s 11.11%  bufio.(*Writer).Flush
+         0     0%   100%      0.15s 11.11%  bufio.(*Writer).Write
+         0     0%   100%      0.01s  0.74%  container/heap.Pop
+         0     0%   100%      0.02s  1.48%  container/heap.Push
+         0     0%   100%      0.02s  1.48%  container/heap.up
+         0     0%   100%      0.18s 13.33%  hash/crc32.Update (inline)
+         0     0%   100%      0.01s  0.74%  internal/poll.(*FD).Close
+         0     0%   100%      0.03s  2.22%  internal/poll.(*FD).Fsync
+         0     0%   100%      0.03s  2.22%  internal/poll.(*FD).Fsync.func1 (inline)
+         0     0%   100%      0.42s 31.11%  internal/poll.(*FD).Write
+         0     0%   100%      0.01s  0.74%  internal/poll.(*FD).decref
+         0     0%   100%      0.01s  0.74%  internal/poll.(*FD).destroy
+         0     0%   100%      0.01s  0.74%  internal/poll.(*SysFile).destroy (inline)
+         0     0%   100%      0.01s  0.74%  internal/poll.(*pollDesc).prepareWrite (inline)
+         0     0%   100%      0.03s  2.22%  internal/poll.ignoringEINTR (inline)
+         0     0%   100%      0.43s 31.85%  internal/poll.ignoringEINTRIO (inline)
+         0     0%   100%      0.01s  0.74%  internal/syscall/unix.Unlinkat
+         0     0%   100%      0.04s  2.96%  io.ReadAtLeast
+         0     0%   100%      0.04s  2.96%  io.ReadFull (inline)
+         0     0%   100%      0.01s  0.74%  kvstore.(*DB).Flush
+         0     0%   100%      0.35s 25.93%  kvstore.(*DB).Put
+         0     0%   100%      0.59s 43.70%  kvstore.(*DB).compact
+         0     0%   100%      0.14s 10.37%  kvstore.(*DB).compact.func1
+         0     0%   100%      0.59s 43.70%  kvstore.(*DB).compactReady
+         0     0%   100%      0.32s 23.70%  kvstore.(*DB).flushPending
+         0     0%   100%      0.33s 24.44%  kvstore.(*DB).flushTo
+         0     0%   100%      0.01s  0.74%  kvstore.(*DB).install (inline)
+         0     0%   100%      0.01s  0.74%  kvstore.(*DB).maybeFlush
+         0     0%   100%      0.35s 25.93%  kvstore.(*DB).mutate
+         0     0%   100%      0.01s  0.74%  kvstore.(*DB).publish
+         0     0%   100%      0.03s  2.22%  kvstore.(*DB).removeFlushedWALs
+         0     0%   100%      0.01s  0.74%  kvstore.(*DB).rotateLocked
+         0     0%   100%      0.91s 67.41%  kvstore.(*DB).runCompactor
+         0     0%   100%      0.28s 20.74%  kvstore.(*DB).writeTable
+         0     0%   100%      0.84s 62.22%  kvstore.(*DB).writeTableIterator
+         0     0%   100%      0.01s  0.74%  kvstore.(*memTable).shard (inline)
+         0     0%   100%      0.02s  1.48%  kvstore.(*sstable).mapFiles
+         0     0%   100%      0.36s 26.67%  kvstore.BenchmarkMaintenanceWritePath
+         0     0%   100%      0.02s  1.48%  kvstore.mapFile
+         0     0%   100%      0.18s 13.33%  kvstore.readRecord
+         0     0%   100%      0.07s  5.19%  kvstore.recordAt
+         0     0%   100%      0.18s 13.33%  kvstore.recordCRC
+         0     0%   100%      0.04s  2.96%  kvstore.recordViewAt
+         0     0%   100%      0.03s  2.22%  kvstore.syncDir
+         0     0%   100%      0.04s  2.96%  kvstore.writeIndex
+         0     0%   100%      0.01s  0.74%  os.(*File).Close
+         0     0%   100%      0.03s  2.22%  os.(*File).Read
+         0     0%   100%      0.03s  2.22%  os.(*File).Sync
+         0     0%   100%      0.42s 31.11%  os.(*File).Write
+         0     0%   100%      0.03s  2.22%  os.(*File).read (inline)
+         0     0%   100%      0.42s 31.11%  os.(*File).write (inline)
+         0     0%   100%      0.01s  0.74%  os.(*file).close
+         0     0%   100%      0.04s  2.96%  os.OpenFile
+         0     0%   100%      0.04s  2.96%  os.Remove
+         0     0%   100%      0.04s  2.96%  os.Remove.func1 (inline)
+         0     0%   100%      0.01s  0.74%  os.RemoveAll (inline)
+         0     0%   100%      0.01s  0.74%  os.Stat
+         0     0%   100%      0.10s  7.41%  os.ignoringEINTR (inline)
+         0     0%   100%      0.04s  2.96%  os.open
+         0     0%   100%      0.04s  2.96%  os.openFileNolog
+         0     0%   100%      0.04s  2.96%  os.openFileNolog.func1 (inline)
+         0     0%   100%      0.01s  0.74%  os.removeAll
+         0     0%   100%      0.01s  0.74%  os.removeAllFrom
+         0     0%   100%      0.01s  0.74%  os.removeAllFrom.removedirat.func2 (inline)
+         0     0%   100%      0.01s  0.74%  os.removedirat (inline)
+         0     0%   100%      0.01s  0.74%  os.statNolog
+         0     0%   100%      0.01s  0.74%  os.statNolog.func1 (inline)
+         0     0%   100%      0.01s  0.74%  runtime.(*activeSweep).begin (inline)
+         0     0%   100%      0.01s  0.74%  runtime.(*gcBits).bitp (inline)
+         0     0%   100%      0.06s  4.44%  runtime.(*mcache).nextFree
+         0     0%   100%      0.06s  4.44%  runtime.(*mcache).refill
+         0     0%   100%      0.05s  3.70%  runtime.(*mcentral).cacheSpan
+         0     0%   100%      0.01s  0.74%  runtime.(*mcentral).uncacheSpan
+         0     0%   100%      0.02s  1.48%  runtime.(*mheap).alloc
+         0     0%   100%      0.02s  1.48%  runtime.(*mheap).alloc.func1
+         0     0%   100%      0.02s  1.48%  runtime.(*mheap).allocSpan
+         0     0%   100%      0.01s  0.74%  runtime.(*mheap).freeSpan (inline)
+         0     0%   100%      0.01s  0.74%  runtime.(*mheap).freeSpanLocked
+         0     0%   100%      0.01s  0.74%  runtime.(*mspan).markBitsForIndex (inline)
+         0     0%   100%      0.01s  0.74%  runtime.(*pageAlloc).free
+         0     0%   100%      0.01s  0.74%  runtime.(*pageCache).alloc
+         0     0%   100%      0.01s  0.74%  runtime.(*pageCache).allocN
+         0     0%   100%      0.01s  0.74%  runtime.(*sweepLocked).sweep
+         0     0%   100%      0.01s  0.74%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+         0     0%   100%      0.01s  0.74%  runtime.bgsweep
+         0     0%   100%      0.09s  6.67%  runtime.deductAssistCredit
+         0     0%   100%      0.02s  1.48%  runtime.deductSweepCredit
+         0     0%   100%      0.02s  1.48%  runtime.exitsyscall
+         0     0%   100%      0.01s  0.74%  runtime.exitsyscallfast
+         0     0%   100%      0.01s  0.74%  runtime.exitsyscallfast.func1
+         0     0%   100%      0.01s  0.74%  runtime.exitsyscallfast_pidle
+         0     0%   100%      0.02s  1.48%  runtime.findObject
+         0     0%   100%      0.01s  0.74%  runtime.futexwakeup
+         0     0%   100%      0.09s  6.67%  runtime.gcAssistAlloc
+         0     0%   100%      0.09s  6.67%  runtime.gcAssistAlloc.func2
+         0     0%   100%      0.09s  6.67%  runtime.gcAssistAlloc1
+         0     0%   100%      0.06s  4.44%  runtime.gcBgMarkWorker
+         0     0%   100%      0.06s  4.44%  runtime.gcBgMarkWorker.func2
+         0     0%   100%      0.06s  4.44%  runtime.gcDrain
+         0     0%   100%      0.05s  3.70%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%      0.01s  0.74%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0%   100%      0.09s  6.67%  runtime.gcDrainN
+         0     0%   100%      0.02s  1.48%  runtime.gcmarknewobject
+         0     0%   100%      0.01s  0.74%  runtime.makeSpanClass (inline)
+         0     0%   100%      0.12s  8.89%  runtime.makeslice
+         0     0%   100%      0.03s  2.22%  runtime.markroot
+         0     0%   100%      0.03s  2.22%  runtime.markrootBlock
+         0     0%   100%      0.02s  1.48%  runtime.newobject
+         0     0%   100%      0.01s  0.74%  runtime.notewakeup
+         0     0%   100%      0.06s  4.44%  runtime.slicebytetostring
+         0     0%   100%      0.19s 14.07%  runtime.systemstack
+         0     0%   100%      0.01s  0.74%  sort.Slice
+         0     0%   100%      0.01s  0.74%  sort.pdqsort_func
+         0     0%   100%      0.02s  1.48%  syscall.(*mmapper).Mmap
+         0     0%   100%      0.01s  0.74%  syscall.Close
+         0     0%   100%      0.03s  2.22%  syscall.Fsync
+         0     0%   100%      0.02s  1.48%  syscall.Mmap (inline)
+         0     0%   100%      0.04s  2.96%  syscall.Open (inline)
+         0     0%   100%      0.57s 42.22%  syscall.RawSyscall6
+         0     0%   100%      0.02s  1.48%  syscall.Read (inline)
+         0     0%   100%      0.01s  0.74%  syscall.Stat (inline)
+         0     0%   100%      0.52s 38.52%  syscall.Syscall
+         0     0%   100%      0.07s  5.19%  syscall.Syscall6
+         0     0%   100%      0.04s  2.96%  syscall.Unlink (inline)
+         0     0%   100%      0.41s 30.37%  syscall.Write (inline)
+         0     0%   100%      0.01s  0.74%  syscall.fstatat
+         0     0%   100%      0.02s  1.48%  syscall.mmap
+         0     0%   100%      0.04s  2.96%  syscall.openat
+         0     0%   100%      0.02s  1.48%  syscall.read
+         0     0%   100%      0.04s  2.96%  syscall.unlinkat
+         0     0%   100%      0.41s 30.37%  syscall.write
+         0     0%   100%      0.36s 26.67%  testing.(*B).launch
+         0     0%   100%      0.01s  0.74%  testing.(*B).run1.func1
+         0     0%   100%      0.37s 27.41%  testing.(*B).runN
+         0     0%   100%      0.01s  0.74%  testing.(*B).runN.func1
+         0     0%   100%      0.01s  0.74%  testing.(*common).Cleanup.func1
+         0     0%   100%      0.01s  0.74%  testing.(*common).TempDir.func2
+         0     0%   100%      0.01s  0.74%  testing.(*common).runCleanup
+         0     0%   100%      0.01s  0.74%  testing.removeAll
