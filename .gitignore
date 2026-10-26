@@ -2,3 +2,5 @@ notes.md
 go.mod
 blog_post.md
 *.png
+main.py
+.DS_Store

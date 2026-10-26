@@ -4,6 +4,8 @@ A persistent key-value store in Go, built from scratch to explore LSM storage en
 
 This is an educational engine with tests and reproducible benchmarks, rather than a production database. The [original design write-up](https://stratum.hashnode.dev/stratum-a-kv-store-in-go) describes the earlier implementation.
 
+The current engine lives on `main`. The [`old` branch](https://github.com/0xmaster7/Stratum/tree/old) preserves the original committed code at `49e6357`, before this implementation and optimization series.
+
 ## Run it
 
 Requires **Go 1.25+ on Linux or macOS**. There are no third-party dependencies. Run the entire package with `go run .`; the engine now spans several files.
@@ -178,6 +180,21 @@ Tests cover deletes across flush/restart, literal tombstone-like values, binary 
 The [final three-engine comparison](benchmarks/engine-h2h/README.md) reruns the original agent-memory workload against **latest GoLSM `bf0bc4d`, the post's pinned Kiban, and raw LMDB**, in-process on pancakes. It covers **48 trials**, 10k/1M base records, durable/fast modes, and **8.88M timed calls**. Every value and new-process reopen check passed. GoLSM's Go C archive calls and copies remain inside its timer.
 
 At **1M**, GoLSM's durable insert/overwrite p50 is **1.33–1.36× faster than Kiban** and **1.12–1.18× faster than LMDB**; verified write throughput is **200–201 ops/s**, versus **164–169 / 81–92** for Kiban / LMDB. Point-read p50 is **1.88–1.97× faster than Kiban** across modes, but **2.14–2.25× slower than LMDB**. Latest-10 scans still trail Kiban by **3.81–4.38×** and LMDB by **5.25–6.03×**.
+
+Median p50 at **1M base records**, in **µs** (three trials per engine and mode):
+
+| Workload | Mode | GoLSM | Kiban | LMDB |
+| --- | --- | ---: | ---: | ---: |
+| Insert | durable | 4,325.376 | 5,898.240 | 5,111.808 |
+| Point read | durable | 3.968 | 7.808 | 1.856 |
+| Latest 10 | durable | 20.480 | 5.376 | 3.904 |
+| Overwrite | durable | 4,325.376 | 5,767.168 | 4,849.664 |
+| 90/10 mix | durable | 6.528 | 11.776 | 3.264 |
+| Insert | fast | 3.072 | 1.216 | 10.752 |
+| Point read | fast | 4.096 | 7.680 | 1.824 |
+| Latest 10 | fast | 23.552 | 5.376 | 3.904 |
+| Overwrite | fast | 3.200 | 1.856 | 14.848 |
+| 90/10 mix | fast | 4.608 | 8.192 | 1.888 |
 
 Fast write p50 favors GoLSM over LMDB, but throughput exposes maintenance costs: at 1M, verified inserts are **16.7k / 269.7k / 67.3k ops/s** for GoLSM / Kiban / LMDB. Kiban's direct handle defers its flush until excluded finish, while GoLSM flushes and compacts automatically. At 10k, GoLSM still trails both engines on point reads and latest-10 scans. See the [complete tables, tails, and throughput](benchmarks/engine-h2h/results/2026-10-26/REPORT.md) and [interactive comparison](benchmarks/engine-h2h/results/2026-10-26/comparison.html).
 
