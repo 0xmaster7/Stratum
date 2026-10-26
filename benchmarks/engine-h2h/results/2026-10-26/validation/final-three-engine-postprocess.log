@@ -1,0 +1,16 @@
+durable-kiban {'fdatasync': {'calls': 2316, 'errors': 0}, 'fsync': {'calls': 32, 'errors': 0}}
+durable-golsm {'fsync': {'calls': 2364, 'errors': 0}}
+durable-lmdb {'pwrite64': {'calls': 12103, 'errors': 0}, 'fdatasync': {'calls': 2315, 'errors': 0}}
+fast-kiban {'fsync': {'calls': 32, 'errors': 0}, 'fdatasync': {'calls': 6, 'errors': 0}}
+fast-golsm {'fsync': {'calls': 54, 'errors': 0}}
+fast-lmdb {'pwrite64': {'calls': 12103, 'errors': 0}, 'fdatasync': {'calls': 5, 'errors': 0}}
+{
+  "verified_trials": 48,
+  "timed_calls": 8880000,
+  "write_readbacks": 2790000,
+  "records_checked_after_new_process_reopen": 19590000,
+  "all_value_checks_pass": true,
+  "all_reopen_checks_pass": true,
+  "all_load_gates_pass": false
+}
+POSTPROCESS COMPLETE

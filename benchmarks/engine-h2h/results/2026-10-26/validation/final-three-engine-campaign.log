@@ -1,0 +1,97 @@
+2026-10-26T13:04:44.979564 n10000-durable-r1-kiban START
+2026-10-26T13:06:34.333809 n10000-durable-r1-kiban PASS [('remember', 4456448), ('recall-by-id', 1088), ('recent-for-agent', 5120), ('update', 4325376), ('mixed-90-10', 2016)]
+2026-10-26T13:06:34.344613 n10000-durable-r1-golsm START
+2026-10-26T13:08:23.107390 n10000-durable-r1-golsm PASS [('remember', 4325376), ('recall-by-id', 1632), ('recent-for-agent', 18432), ('update', 4325376), ('mixed-90-10', 3392)]
+2026-10-26T13:08:23.118209 n10000-durable-r1-lmdb START
+2026-10-26T13:11:53.430165 n10000-durable-r1-lmdb PASS [('remember', 4980736), ('recall-by-id', 1280), ('recent-for-agent', 3776), ('update', 4718592), ('mixed-90-10', 2944)]
+2026-10-26T13:11:53.442136 n10000-fast-r1-kiban START
+2026-10-26T13:11:54.649064 n10000-fast-r1-kiban PASS [('remember', 1984), ('recall-by-id', 1696), ('recent-for-agent', 9216), ('update', 2560), ('mixed-90-10', 1600)]
+2026-10-26T13:11:54.661225 n10000-fast-r1-golsm START
+2026-10-26T13:11:57.907591 n10000-fast-r1-golsm PASS [('remember', 4736), ('recall-by-id', 2944), ('recent-for-agent', 35840), ('update', 5120), ('mixed-90-10', 3968)]
+2026-10-26T13:11:57.920401 n10000-fast-r1-lmdb START
+2026-10-26T13:11:59.536244 n10000-fast-r1-lmdb PASS [('remember', 13568), ('recall-by-id', 2112), ('recent-for-agent', 7552), ('update', 14080), ('mixed-90-10', 2112)]
+2026-10-26T13:11:59.562890 n10000-durable-r2-kiban START
+2026-10-26T13:14:02.232247 n10000-durable-r2-kiban PASS [('remember', 4587520), ('recall-by-id', 1152), ('recent-for-agent', 4864), ('update', 4456448), ('mixed-90-10', 3520)]
+2026-10-26T13:14:02.259384 n10000-durable-r2-golsm START
+2026-10-26T13:15:57.358577 n10000-durable-r2-golsm PASS [('remember', 4325376), ('recall-by-id', 3328), ('recent-for-agent', 39936), ('update', 4456448), ('mixed-90-10', 3456)]
+2026-10-26T13:15:57.371026 n10000-durable-r2-lmdb START
+2026-10-26T13:19:35.872998 n10000-durable-r2-lmdb PASS [('remember', 5242880), ('recall-by-id', 2176), ('recent-for-agent', 7552), ('update', 4980736), ('mixed-90-10', 2368)]
+2026-10-26T13:19:35.885739 n10000-fast-r2-kiban START
+2026-10-26T13:19:36.891490 n10000-fast-r2-kiban PASS [('remember', 1152), ('recall-by-id', 1024), ('recent-for-agent', 4992), ('update', 1600), ('mixed-90-10', 896)]
+2026-10-26T13:19:36.909431 n10000-fast-r2-golsm START
+2026-10-26T13:19:39.317982 n10000-fast-r2-golsm PASS [('remember', 3008), ('recall-by-id', 2432), ('recent-for-agent', 19968), ('update', 3328), ('mixed-90-10', 2176)]
+2026-10-26T13:19:39.331023 n10000-fast-r2-lmdb START
+2026-10-26T13:19:40.538240 n10000-fast-r2-lmdb PASS [('remember', 8960), ('recall-by-id', 1248), ('recent-for-agent', 3776), ('update', 8960), ('mixed-90-10', 1216)]
+2026-10-26T13:19:40.551900 n10000-durable-r3-kiban START
+2026-10-26T13:21:31.720625 n10000-durable-r3-kiban PASS [('remember', 4325376), ('recall-by-id', 1120), ('recent-for-agent', 4864), ('update', 4325376), ('mixed-90-10', 2752)]
+2026-10-26T13:21:31.734271 n10000-durable-r3-golsm START
+2026-10-26T13:23:19.487712 n10000-durable-r3-golsm PASS [('remember', 4325376), ('recall-by-id', 1696), ('recent-for-agent', 20480), ('update', 4325376), ('mixed-90-10', 3392)]
+2026-10-26T13:23:19.501682 n10000-durable-r3-lmdb START
+2026-10-26T13:26:46.389321 n10000-durable-r3-lmdb PASS [('remember', 4980736), ('recall-by-id', 1248), ('recent-for-agent', 3776), ('update', 4849664), ('mixed-90-10', 2432)]
+2026-10-26T13:26:46.404691 n10000-fast-r3-kiban START
+2026-10-26T13:26:47.410085 n10000-fast-r3-kiban PASS [('remember', 1216), ('recall-by-id', 992), ('recent-for-agent', 4864), ('update', 1600), ('mixed-90-10', 896)]
+2026-10-26T13:26:47.427416 n10000-fast-r3-golsm START
+2026-10-26T13:26:49.636119 n10000-fast-r3-golsm PASS [('remember', 2944), ('recall-by-id', 1632), ('recent-for-agent', 18432), ('update', 3584), ('mixed-90-10', 2304)]
+2026-10-26T13:26:49.650582 n10000-fast-r3-lmdb START
+2026-10-26T13:26:50.857544 n10000-fast-r3-lmdb PASS [('remember', 8704), ('recall-by-id', 1152), ('recent-for-agent', 3776), ('update', 8960), ('mixed-90-10', 1312)]
+2026-10-26T13:26:50.872224 n10000-durable-r4-kiban START
+2026-10-26T13:28:52.837350 n10000-durable-r4-kiban PASS [('remember', 6160384), ('recall-by-id', 1152), ('recent-for-agent', 4864), ('update', 4456448), ('mixed-90-10', 2048)]
+2026-10-26T13:28:52.852189 n10000-durable-r4-golsm START
+2026-10-26T13:30:39.798587 n10000-durable-r4-golsm PASS [('remember', 4325376), ('recall-by-id', 1760), ('recent-for-agent', 19968), ('update', 4325376), ('mixed-90-10', 3648)]
+2026-10-26T13:30:39.813941 n10000-durable-r4-lmdb START
+2026-10-26T13:34:05.894905 n10000-durable-r4-lmdb PASS [('remember', 5111808), ('recall-by-id', 1312), ('recent-for-agent', 3776), ('update', 4849664), ('mixed-90-10', 2432)]
+2026-10-26T13:34:05.910532 n10000-fast-r4-kiban START
+2026-10-26T13:34:06.915572 n10000-fast-r4-kiban PASS [('remember', 1184), ('recall-by-id', 976), ('recent-for-agent', 4864), ('update', 1536), ('mixed-90-10', 976)]
+2026-10-26T13:34:06.932118 n10000-fast-r4-golsm START
+2026-10-26T13:34:09.140845 n10000-fast-r4-golsm PASS [('remember', 2944), ('recall-by-id', 1696), ('recent-for-agent', 19968), ('update', 3328), ('mixed-90-10', 2432)]
+2026-10-26T13:34:09.157321 n10000-fast-r4-lmdb START
+2026-10-26T13:34:10.363951 n10000-fast-r4-lmdb PASS [('remember', 8704), ('recall-by-id', 1152), ('recent-for-agent', 3840), ('update', 8960), ('mixed-90-10', 1088)]
+2026-10-26T13:34:10.380389 n10000-durable-r5-kiban START
+2026-10-26T13:36:02.730920 n10000-durable-r5-kiban PASS [('remember', 4849664), ('recall-by-id', 1568), ('recent-for-agent', 4864), ('update', 4325376), ('mixed-90-10', 2016)]
+2026-10-26T13:36:02.747170 n10000-durable-r5-golsm START
+2026-10-26T13:37:49.297604 n10000-durable-r5-golsm PASS [('remember', 4325376), ('recall-by-id', 1664), ('recent-for-agent', 19456), ('update', 4325376), ('mixed-90-10', 3328)]
+2026-10-26T13:37:49.314444 n10000-durable-r5-lmdb START
+2026-10-26T13:41:15.404084 n10000-durable-r5-lmdb PASS [('remember', 5111808), ('recall-by-id', 1248), ('recent-for-agent', 3776), ('update', 4849664), ('mixed-90-10', 2368)]
+2026-10-26T13:41:15.421087 n10000-fast-r5-kiban START
+2026-10-26T13:41:16.226211 n10000-fast-r5-kiban PASS [('remember', 1184), ('recall-by-id', 992), ('recent-for-agent', 4736), ('update', 1600), ('mixed-90-10', 832)]
+2026-10-26T13:41:16.246253 n10000-fast-r5-golsm START
+2026-10-26T13:41:18.454895 n10000-fast-r5-golsm PASS [('remember', 3200), ('recall-by-id', 1664), ('recent-for-agent', 19456), ('update', 3136), ('mixed-90-10', 2496)]
+2026-10-26T13:41:18.472169 n10000-fast-r5-lmdb START
+2026-10-26T13:41:19.679347 n10000-fast-r5-lmdb PASS [('remember', 8704), ('recall-by-id', 1216), ('recent-for-agent', 3776), ('update', 9216), ('mixed-90-10', 1728)]
+2026-10-26T13:41:19.696917 n1000000-durable-r1-kiban START
+2026-10-26T13:44:18.952999 n1000000-durable-r1-kiban PASS [('remember', 5111808), ('recall-by-id', 7936), ('recent-for-agent', 5376), ('update', 4325376), ('mixed-90-10', 11776)]
+2026-10-26T13:44:18.971901 n1000000-durable-r1-golsm START
+2026-10-26T13:47:26.290255 n1000000-durable-r1-golsm PASS [('remember', 4325376), ('recall-by-id', 3776), ('recent-for-agent', 20480), ('update', 4325376), ('mixed-90-10', 6400)]
+2026-10-26T13:47:26.308822 n1000000-durable-r1-lmdb START
+2026-10-26T13:53:26.446290 n1000000-durable-r1-lmdb PASS [('remember', 5111808), ('recall-by-id', 1888), ('recent-for-agent', 3904), ('update', 4849664), ('mixed-90-10', 3264)]
+2026-10-26T13:53:26.466732 n1000000-fast-r1-kiban START
+2026-10-26T13:53:51.541108 n1000000-fast-r1-kiban PASS [('remember', 1216), ('recall-by-id', 7680), ('recent-for-agent', 5376), ('update', 1888), ('mixed-90-10', 8448)]
+2026-10-26T13:53:51.560836 n1000000-fast-r1-golsm START
+2026-10-26T13:54:44.520380 n1000000-fast-r1-golsm PASS [('remember', 3072), ('recall-by-id', 4224), ('recent-for-agent', 23040), ('update', 3200), ('mixed-90-10', 4480)]
+2026-10-26T13:54:44.539959 n1000000-fast-r1-lmdb START
+2026-10-26T13:56:39.160748 n1000000-fast-r1-lmdb PASS [('remember', 10752), ('recall-by-id', 1856), ('recent-for-agent', 3904), ('update', 14848), ('mixed-90-10', 1856)]
+2026-10-26T13:56:39.181067 n1000000-durable-r2-kiban START
+2026-10-26T13:59:52.259356 n1000000-durable-r2-kiban PASS [('remember', 5898240), ('recall-by-id', 7808), ('recent-for-agent', 5376), ('update', 5767168), ('mixed-90-10', 11776)]
+2026-10-26T13:59:52.279068 n1000000-durable-r2-golsm START
+2026-10-26T14:03:00.595902 n1000000-durable-r2-golsm PASS [('remember', 4325376), ('recall-by-id', 3968), ('recent-for-agent', 20480), ('update', 4325376), ('mixed-90-10', 6656)]
+2026-10-26T14:03:00.616371 n1000000-durable-r2-lmdb START
+2026-10-26T14:09:00.950424 n1000000-durable-r2-lmdb PASS [('remember', 5242880), ('recall-by-id', 1728), ('recent-for-agent', 3904), ('update', 5111808), ('mixed-90-10', 3264)]
+2026-10-26T14:09:00.971169 n1000000-fast-r2-kiban START
+2026-10-26T14:09:26.036120 n1000000-fast-r2-kiban PASS [('remember', 1216), ('recall-by-id', 7936), ('recent-for-agent', 5376), ('update', 1728), ('mixed-90-10', 8192)]
+2026-10-26T14:09:26.056421 n1000000-fast-r2-golsm START
+2026-10-26T14:10:19.445717 n1000000-fast-r2-golsm PASS [('remember', 3072), ('recall-by-id', 4096), ('recent-for-agent', 23552), ('update', 3264), ('mixed-90-10', 4736)]
+2026-10-26T14:10:19.467423 n1000000-fast-r2-lmdb START
+2026-10-26T14:12:14.090313 n1000000-fast-r2-lmdb PASS [('remember', 10752), ('recall-by-id', 1824), ('recent-for-agent', 3904), ('update', 14848), ('mixed-90-10', 1984)]
+2026-10-26T14:12:14.112669 n1000000-durable-r3-kiban START
+2026-10-26T14:15:32.802059 n1000000-durable-r3-kiban PASS [('remember', 5898240), ('recall-by-id', 7808), ('recent-for-agent', 5376), ('update', 5898240), ('mixed-90-10', 12032)]
+2026-10-26T14:15:32.823092 n1000000-durable-r3-golsm START
+2026-10-26T14:18:40.944881 n1000000-durable-r3-golsm PASS [('remember', 4325376), ('recall-by-id', 4032), ('recent-for-agent', 20992), ('update', 4325376), ('mixed-90-10', 6528)]
+2026-10-26T14:18:40.966147 n1000000-durable-r3-lmdb START
+2026-10-26T14:24:41.893289 n1000000-durable-r3-lmdb PASS [('remember', 4980736), ('recall-by-id', 1856), ('recent-for-agent', 3904), ('update', 4128768), ('mixed-90-10', 3200)]
+2026-10-26T14:24:41.915611 n1000000-fast-r3-kiban START
+2026-10-26T14:25:06.378526 n1000000-fast-r3-kiban PASS [('remember', 1248), ('recall-by-id', 7680), ('recent-for-agent', 5376), ('update', 1856), ('mixed-90-10', 8192)]
+2026-10-26T14:25:06.399988 n1000000-fast-r3-golsm START
+2026-10-26T14:25:59.360177 n1000000-fast-r3-golsm PASS [('remember', 3072), ('recall-by-id', 3968), ('recent-for-agent', 23552), ('update', 3200), ('mixed-90-10', 4608)]
+2026-10-26T14:25:59.382818 n1000000-fast-r3-lmdb START
+2026-10-26T14:27:54.005509 n1000000-fast-r3-lmdb PASS [('remember', 10752), ('recall-by-id', 1792), ('recent-for-agent', 3904), ('update', 14592), ('mixed-90-10', 1888)]
+CAMPAIGN COMPLETE 48

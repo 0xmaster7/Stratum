@@ -1,0 +1,14 @@
+{
+  "backend": "lmdb",
+  "db": "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/final-20261026/databases/n10000-durable-r3-lmdb",
+  "endpoint": "",
+  "n": 10000,
+  "operations": 10000,
+  "k": 10,
+  "seed": 20261016,
+  "output": "/home/azureuser/projects/kvstore/benchmarks/engine-h2h/work/final-20261026/n10000-durable-r3-lmdb.reopen.jsonl",
+  "verify_only": true,
+  "mode": "durable",
+  "write_operations": 10000,
+  "warmup": 100
+}

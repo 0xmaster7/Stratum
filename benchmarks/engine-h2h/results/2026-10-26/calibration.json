@@ -1,0 +1,1 @@
+{"calls":100000,"echo_copy_free_p50_ns":184,"echo_copy_free_p99_ns":376,"noop_p50_ns":102,"noop_p99_ns":184,"note":"Excluded diagnostic. No latency subtraction; actual GoLSM timings include bridging.","payload_bytes":291}

@@ -1,0 +1,12 @@
+{
+  "viewports": [
+    728,
+    390
+  ],
+  "selector_combinations_checked_per_viewport": 8,
+  "five_workload_rows_per_view": true,
+  "five_table_rows_per_view": true,
+  "no_nonfinite_or_missing_display_values": true,
+  "no_page_horizontal_overflow": true,
+  "revision_label": "bf0bc4d"
+}

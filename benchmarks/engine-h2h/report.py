@@ -173,13 +173,18 @@ def main():
         "all_value_checks_pass": True,
         "all_reopen_checks_pass": True,
         "all_load_gates_pass": all(s["load"]["gate_pass"] for s in summaries),
+        "load_gate_passed_trials": sum(s["load"]["gate_pass"] for s in summaries),
+        "load_gate_failed_trials": sum(not s["load"]["gate_pass"] for s in summaries),
     }
     (root / "audit.json").write_text(json.dumps(audit, indent=2) + "\n")
     aggregated = []
     text = "# GoLSM vs Kiban vs LMDB: matched engine workload\n\n"
     text += "All engines ran in one release executable with in-process calls on pancakes. These are new measurements, not the post’s hardware results. GoLSM uses a Go C archive; its measured latency includes the foreign-function call and result copy. The original Kiban/LMDB adapters and the upstream generator, oracle, and histogram are retained.\n\n"
     text += f"Validated **{audit['verified_trials']} trials**, **{audit['timed_calls']:,} timed calls**, **{audit['write_readbacks']:,} immediate write read-backs**, and **{audit['records_checked_after_new_process_reopen']:,} records after new-process reopen**. No value errors.\n\n"
-    text += "The original direct Kiban handle buffers its WAL and defers explicit flushing to the excluded finish step; GoLSM retains its automatic 1,000-operation flush and background compactor. Thus fast p50 is foreground acknowledgment latency with different buffering/maintenance policies, not equal sustained compaction-drained capacity. GoLSM also pays its measured C-archive bridge overhead.\n\n"
+    text += f"Engine pins: GoLSM `{meta['engine_versions']['golsm']}`, Kiban `{meta['engine_versions']['kiban']}`, LMDB `lmdb-master3-sys {meta['engine_versions']['lmdb-master3-sys']}` through `heed3 {meta['engine_versions']['heed3']}`.\n\n"
+    text += "The original direct Kiban handle buffers its WAL and defers explicit flushing to the excluded finish step. GoLSM automatically flushes at 1,000 writes; its flush and compaction implementation is determined by the recorded engine revision. Thus fast p50 is foreground acknowledgment latency with different buffering/maintenance policies, not equal sustained compaction-drained capacity. GoLSM also pays its measured C-archive bridge overhead.\n\n"
+    if meta['engine_versions']['golsm'].startswith('bf0bc4d'):
+        text += "This GoLSM revision queues frozen memtables with bounded writer backpressure, triggers bounded tier compaction after flushes, uses numbered active WALs, avoids directory syncs when deleting checkpointed files, and builds SSTable indexes/Bloom filters during streaming writes. Durable mutations still sync their WAL before acknowledgment.\n\n"
     text += "Cells are medians of trial statistics, with trial ranges where shown. Latency histogram quantization is under 3.125%. No trials were dropped. These are shared-VM results; the 1M results remain preliminary with three repetitions. Full settings and limitations are in the benchmark README.\n"
     for n in sorted(set(k[0] for k in groups)):
         for mode in ["durable", "fast"]:

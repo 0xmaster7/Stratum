@@ -1,0 +1,130 @@
+{
+  "base_records": 1000000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1793023788.2493284,
+      "load": [
+        1.0244140625,
+        1.3017578125,
+        1.533203125
+      ]
+    },
+    {
+      "epoch": 1793023812.6610243,
+      "load": [
+        1.20849609375,
+        1.32470703125,
+        1.53564453125
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "bridge": "Go c-archive; Rust -> C -> Go; calls, copies and returned-buffer free included",
+    "cache_bytes": 16777216,
+    "compaction_interval_seconds": 30,
+    "compaction_threshold": 4,
+    "engine_commit": "bf0bc4d6cc88bccf9dd329cdc6a9164eb0d070b7",
+    "flush_threshold": 1000,
+    "per_write_sync": false
+  },
+  "final_engine_state": {
+    "go_heap_alloc": 67626144,
+    "go_num_gc": 305,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1507808,
+      "BloomChecks": 9422247,
+      "BloomSkips": 7082903,
+      "CacheBudget": 16777216,
+      "CacheBytes": 16777040,
+      "CacheHits": 8285,
+      "CompactionNanos": 4298344378,
+      "Compactions": 68,
+      "Deletes": 0,
+      "DiskBytes": 431987430,
+      "FlushNanos": 7073413504,
+      "Flushes": 210,
+      "Gets": 2500000,
+      "IndexEntries": 120624,
+      "LogicalReadBytes": 4550315294,
+      "MappedBytes": 431987374,
+      "MemtableEntries": 0,
+      "MemtableHits": 210068,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 210000,
+      "RecordsRead": 12934615,
+      "RecoveryNanos": 5015932,
+      "RecoveryOperations": 0,
+      "SSTables": 7,
+      "ScanNanos": 2675376789,
+      "Scans": 100128,
+      "StartupNanos": 753459626,
+      "TableChecks": 9438923,
+      "TableReads": 2339344,
+      "WALBytesWritten": 73985918,
+      "WriteError": ""
+    }
+  },
+  "final_population": 1100000,
+  "initial_engine_state": {
+    "go_heap_alloc": 68755808,
+    "go_num_gc": 165,
+    "gomaxprocs": 1,
+    "metrics": {
+      "BackgroundError": "",
+      "BloomBytes": 1250000,
+      "BloomChecks": 1000000,
+      "BloomSkips": 0,
+      "CacheBudget": 16777216,
+      "CacheBytes": 16776966,
+      "CacheHits": 0,
+      "CompactionNanos": 0,
+      "Compactions": 0,
+      "Deletes": 0,
+      "DiskBytes": 358032670,
+      "FlushNanos": 0,
+      "Flushes": 0,
+      "Gets": 1000000,
+      "IndexEntries": 100000,
+      "LogicalReadBytes": 1934530120,
+      "MappedBytes": 358032640,
+      "MemtableEntries": 0,
+      "MemtableHits": 0,
+      "Misses": 0,
+      "PendingOperations": 0,
+      "Puts": 0,
+      "RecordsRead": 5500000,
+      "RecoveryNanos": 5015932,
+      "RecoveryOperations": 0,
+      "SSTables": 1,
+      "ScanNanos": 584646,
+      "Scans": 64,
+      "StartupNanos": 753459626,
+      "TableChecks": 1000000,
+      "TableReads": 1000000,
+      "WALBytesWritten": 0,
+      "WriteError": ""
+    }
+  },
+  "measurement_end_epoch": 1793023812.6610243,
+  "measurement_start_epoch": 1793023788.2493284,
+  "peak_rss_bytes": 1475137536,
+  "preload": {
+    "base_records": 1000000,
+    "durability": "relaxed bulk batches; explicit sync at end, all outside measurement",
+    "golsm_bulk_flush_threshold": 1000001,
+    "initial_verification_seconds": 4.089061227,
+    "kiban_batch_records": 10000,
+    "lmdb_helix_bulk_transactions": 1,
+    "load_and_final_sync_seconds": 12.76311853,
+    "reopen_verification_seconds": 4.481028234
+  },
+  "proc_io": "rchar: 351768931\nwchar: 1112986403\nsyscr: 85998\nsyscw: 1477953\nread_bytes: 0\nwrite_bytes: 1115697152\ncancelled_write_bytes: 0\n",
+  "proc_stat": "3684975 (golsm-engine-h2) R 3545363 3545363 3545363 0 -1 4194304 75478 0 0 0 2737 347 0 0 20 0 7 0 85154966 4459982848 132418 18446744073709551615 108270993946784 108270995852448 140726626327712 0 0 0 0 4096 4195520 0 0 0 17 1 0 0 0 0 0 108270996848696 108270996924162 108271325892608 140726626335710 140726626335907 140726626335907 140726626336673 0\n",
+  "rss_bytes": 542384128,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 100000
+}

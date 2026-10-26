@@ -2,9 +2,40 @@
 
 This harness reproduces the agent-memory engine workload behind [Kiban's head-to-head post](https://github.com/aetosdios27/kiban/blob/082858f86fc38b79e582eb34b7f39aa2368b3af0/validation/ENGINE_H2H.md), adding GoLSM to the same in-process Rust driver. It measures new results on `pancakes`; it does not reuse the post's latency numbers or imply matching hardware.
 
-The recorded three-engine comparison below measures GoLSM `b9a1c07`. Later engine optimizations are evaluated separately in [`../optimizations/`](../optimizations/); those changes do not retroactively update these numbers.
+The latest comparison measures GoLSM `bf0bc4d` (engine changes through `37abd15`) against the original pinned Kiban and LMDB versions. The October 24 comparison is retained as historical data; optimization experiments are recorded separately in [`../optimizations/`](../optimizations/) and [`../write-path/`](../write-path/).
 
-## Recorded comparison: October 24, 2026
+## Final comparison: October 26, 2026
+
+The latest [full report](results/2026-10-26/REPORT.md), [interactive comparison](results/2026-10-26/comparison.html), [audit](results/2026-10-26/audit.json), and [raw trials](results/2026-10-26/) rerun the original **48-trial protocol** against GoLSM `bf0bc4d`. The campaign ran **13:04–14:27 UTC** on pancakes. All **8.88M timed calls**, **2.79M immediate write read-backs**, and **19.59M records checked after new-process reopen** passed value verification.
+
+**Load:** 43/48 trials passed the recorded gate. Five 10k trials in repetition two failed: durable GoLSM/LMDB and all three fast engines. All 18 of the 1M trials passed; those groups still have only three repetitions on a shared VM. Every trial is retained.
+
+At **1M base records**, median per-trial p50 latency is:
+
+| Workload | Mode | GoLSM µs | Kiban µs | LMDB µs |
+| --- | --- | ---: | ---: | ---: |
+| Insert | durable | 4,325.376 | 5,898.240 | 5,111.808 |
+| Point read | durable | 3.968 | 7.808 | 1.856 |
+| Latest 10 | durable | 20.480 | 5.376 | 3.904 |
+| Overwrite | durable | 4,325.376 | 5,767.168 | 4,849.664 |
+| 90/10 mix | durable | 6.528 | 11.776 | 3.264 |
+| Insert | fast | 3.072 | 1.216 | 10.752 |
+| Point read | fast | 4.096 | 7.680 | 1.824 |
+| Latest 10 | fast | 23.552 | 5.376 | 3.904 |
+| Overwrite | fast | 3.200 | 1.856 | 14.848 |
+| 90/10 mix | fast | 4.608 | 8.192 | 1.888 |
+
+- **Durable writes:** at 1M, GoLSM's p50 is **1.33–1.36× faster than Kiban** and **1.12–1.18× faster than LMDB**. Verified insert/overwrite throughput is **200/201 ops/s** for GoLSM, **164/169** for Kiban, and **81/92** for LMDB. At 10k, GoLSM ties Kiban's overwrite p50 and is 1.06× faster on inserts; it beats LMDB's write p50 by 1.12–1.18×.
+- **Point reads:** at 1M, GoLSM is **1.88–1.97× faster than Kiban**, but **2.14–2.25× slower than LMDB**, across modes. At 10k it still trails both: GoLSM **1.696 µs**, Kiban **0.992–1.152 µs**, LMDB **1.216–1.280 µs**. GoLSM's 1M fast point-read verified throughput is **137k ops/s**, versus Kiban **114k** and LMDB **299k**.
+- **Latest 10 remains a clear weakness:** at 1M, GoLSM's p50 is **3.81–4.38× slower than Kiban** and **5.25–6.03× slower than LMDB**. Its verified throughput is **24–26k ops/s**, versus Kiban **76k** and LMDB **87–88k**. All 10k scan subsets also favor the competitors.
+- **Fast writes:** Kiban beats GoLSM's 1M p50 by **1.72–2.53×**. GoLSM beats LMDB's p50 by **3.50–4.64×**, but its verified insert throughput is only **16.7k ops/s**, versus Kiban **269.7k** and LMDB **67.3k**. Overwrite throughput is **15.1k / 218.6k / 15.4k ops/s** for GoLSM / Kiban / LMDB. GoLSM's write backpressure and maintenance tails matter: its 1M fast write p999 is about **10.7–11.0 ms**, with median per-trial maxima **364/614 ms** for insert/overwrite. Kiban's direct handle defers its flush to excluded finish, so these are different maintenance boundaries.
+- **90/10 mix:** at 1M fast, GoLSM has lower p50 than Kiban (**4.608 vs 8.192 µs**) but lower verified throughput (**78.9k vs 117.6k ops/s**); LMDB leads both at **1.888 µs / 133.1k ops/s**. In durable mode, GoLSM/Kiban throughput is nearly tied (**1,997/1,972 ops/s**), ahead of LMDB (**918 ops/s**).
+
+The [excluded syscall diagnostic](results/2026-10-26/sync-diagnostic/summary.json) passed for all six engine/mode combinations. Counts cover each whole process, including warmup, preload, finish, and close; instrumented latencies are excluded. For 2,100 timed writes, durable/fast sync counts were GoLSM **2,364/54 `fsync`**, Kiban **2,316/6 `fdatasync` plus 32/32 `fsync`**, and LMDB **2,315/5 `fdatasync`**. The excluded Go echo/copy/free calibration is **0.184 µs p50**; bridge overhead remains included without subtraction.
+
+These are fresh three-engine measurements. Earlier before/after experiments used different days and host loads and are not substituted into these ratios. Kiban remains pinned to the version cited by the original post, not its current GitHub head. The full report includes p99/p999/max, trial ranges, resources, and maintenance counters.
+
+## Historical comparison: October 24, 2026
 
 The complete [report](results/2026-10-24/REPORT.md), [interactive comparison](results/2026-10-24/comparison.html), [audit](results/2026-10-24/audit.json), and [raw trial files](results/2026-10-24/) are checked in. All **48 trials**, **8.88 million timed calls**, **2.79 million immediate write read-backs**, and **19.59 million records checked after new-process reopen** passed value validation. The campaign ran from 07:43 to 09:16 UTC on pancakes.
 
@@ -31,7 +62,8 @@ The post's 2.2–2.4× Kiban/LMDB durable-write claim is not reproduced as a p50
 
 | Input | Revision/version |
 | --- | --- |
-| GoLSM | `b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a` |
+| GoLSM, latest comparison | `bf0bc4d6cc88bccf9dd329cdc6a9164eb0d070b7` |
+| GoLSM, October 24 comparison | `b9a1c07a85be14eabdcba6dc129bfeaf7a59a82a` |
 | Kiban engine cited by the post | `361305a8b63fef309e301e8106c254e60a70ac84` |
 | Upstream workload/engine harness | `082858f86fc38b79e582eb34b7f39aa2368b3af0` |
 | LMDB implementation | `lmdb-master3-sys 0.2.5` through `heed3 0.22.0` |
@@ -72,7 +104,7 @@ These match acknowledged-write durability intent, not syscall identity: LMDB per
 
 The original bulk preload uses Kiban WriteBatch chunks and one relaxed LMDB transaction. GoLSM has no batch API. Its untimed preload uses ordinary buffered `Put` calls with `FlushThreshold=N+1`, then a final `Flush`, producing one sorted base table. The preload instance is closed; every foreground instance reopens with the normal default flush threshold of 1,000. This prevents preload-only automatic flushing from imposing an unrelated thousand-table starting layout at 1M. No timed write receives that larger threshold, and the timed GoLSM read cache/compactor are not retuned. Initial Go state and the preload threshold are recorded and audited.
 
-GoLSM foreground settings: default 16 MiB estimated LRU budget, 1,000-operation flush threshold, 30-second compactor check, four-table trigger. Kiban uses the post's default options, including its 32 MiB block cache. Cache types and capacities differ; this is a default-configuration workload comparison, not an equal-total-memory experiment. LMDB uses the original 10 GiB map, 200 database slots, and 200 reader slots; `WRITEMAP` and `MAP_ASYNC` remain off.
+GoLSM foreground settings: default 16 MiB estimated LRU budget, 1,000-operation flush threshold, 30-second compactor fallback check, plus flush-triggered compaction and a four-table tier trigger. The latest engine queues frozen memtables with one queued table and writer backpressure, builds compactions outside the global lock, and selects bounded suffix tiers. Its numbered active WALs retain per-write durable syncing; checkpointed-file deletion avoids redundant directory syncs, and SSTable writes build sparse indexes and Bloom filters in the same streaming pass. Kiban uses the post's default options, including its 32 MiB block cache. Cache types and capacities differ; this is a default-configuration workload comparison, not an equal-total-memory experiment. LMDB uses the original 10 GiB map, 200 database slots, and 200 reader slots; `WRITEMAP` and `MAP_ASYNC` remain off.
 
 ## Storage-policy differences that matter here
 
@@ -82,11 +114,11 @@ GoLSM writes each WAL record directly through `os.File.Write`; Kiban uses a user
 
 | Engine | Read path / storage | Relevant capabilities |
 | --- | --- | --- |
-| GoLSM `b9a1c07` | Slice-chained sharded hash memtable, per-record checked SSTables, resident sparse indexes, mmap and a 16 MiB read LRU | Persistent deletes, full-table compaction, materialized range scans; no MVCC snapshots, atomic multi-key batches, or transactions |
+| GoLSM `bf0bc4d` | Sharded hash memtable with cached sorted views, frozen-table reads, mapped SSTable lookups, resident sparse indexes, mmap and a 16 MiB read LRU | Persistent deletes, bounded tier compaction, bounded range scans, background flush with backpressure; no MVCC snapshots, atomic multi-key batches, or transactions |
 | Kiban `361305a` | Ordered/versioned memtable, checked SST blocks, Bloom filters and a default 32 MiB block cache; mmap optional and off | Sequence snapshots, atomic WAL batches, streaming iterators, leveled compaction, a separate shared concurrent API |
 | LMDB via `heed3` | mmap-backed copy-on-write B+tree; reads use a read transaction and decode the stored JSON | MVCC transactions and page-level tree updates; no LSM flush/compaction path |
 
-GoLSM's `Scan` currently snapshots and sorts memtable entries for each call, then merges SSTable cursors. Its timer-driven compaction can change the pending memtable/table layout between stages and trials. This is an important profiling candidate when range latency varies, rather than proof of a measured CPU-time breakdown. The single-client protocol does not measure GoLSM's sharding benefit, Kiban's shared writer throughput, or LMDB's concurrent-reader scaling.
+The historical GoLSM engine sorted memtable entries for each scan and performed blocking maintenance. The latest engine caches sorted views, bounds scan work, and moves flush/compaction construction to background workers. Flush-triggered tier compaction and writer backpressure can still change layout and latency between stages and trials. The single-client protocol does not measure GoLSM's sharding benefit, Kiban's shared writer throughput, or LMDB's concurrent-reader scaling.
 
 ## Cross-language boundary
 
@@ -108,7 +140,7 @@ From the repository root:
 
 ```sh
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-benchmarks/engine-h2h/build.sh
+GOLSM_REF=bf0bc4d benchmarks/engine-h2h/build.sh
 cd benchmarks/engine-h2h
 cargo test --release --locked -- --test-threads=1
 python3 run.py --output work/my-fresh-run

@@ -1,0 +1,39 @@
+{
+  "base_records": 10000,
+  "boundary_load_samples": [
+    {
+      "epoch": 1793021332.638003,
+      "load": [
+        2.3291015625,
+        2.2177734375,
+        2.0
+      ]
+    },
+    {
+      "epoch": 1793021332.686917,
+      "load": [
+        2.3291015625,
+        2.2177734375,
+        2.0
+      ]
+    }
+  ],
+  "cpus_allowed_list": "1",
+  "engine_settings": {
+    "durable_call": "put + sync_data on WAL",
+    "fast_call": "put; default maintenance can still sync",
+    "per_write_sync": true
+  },
+  "final_engine_state": null,
+  "final_population": 20000,
+  "initial_engine_state": null,
+  "measurement_end_epoch": 1793021332.686917,
+  "measurement_start_epoch": 1793021332.638003,
+  "peak_rss_bytes": 22478848,
+  "preload": null,
+  "proc_io": "rchar: 7986773\nwchar: 52\nsyscr: 1918\nsyscw: 1\nread_bytes: 0\nwrite_bytes: 4096\ncancelled_write_bytes: 0\n",
+  "proc_stat": "3617278 (golsm-engine-h2) R 3545363 3545363 3545363 0 -1 4194304 414 0 0 0 4 0 0 0 20 0 6 0 84911624 2711851008 5472 18446744073709551615 100539930753184 100539932658848 140734235428544 0 0 0 0 4096 4195520 0 0 0 17 1 0 0 0 0 0 100539933655096 100539933730562 100540659417088 140734235429846 140734235430051 140734235430051 140734235430817 0\n",
+  "rss_bytes": 22474752,
+  "scope": "whole engine process including oracle, warmup and final verification; sampled before close",
+  "timed_write_operations": 10000
+}
